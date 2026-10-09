@@ -4,8 +4,8 @@ This Jolt backend supports `:vbox`, `:hbox`, `:label`, `:entry`, and `:button`.
 `glimmer.core/run` starts an application with one initial window, and
 `glimmer.core/reload!` remounts that initial root. Closing the final window exits
 this convenience runner by default; pass `:keep-alive true` for background use.
-An application can be run again after normal closure or an exception. The hello-world entry point is
-`./experiment/run`; `./experiment/run --smoke-test` remains available.
+An application can be run again after normal closure or an exception. The
+hello-world application remains in [Snitt's experiment directory](https://github.com/isaksky/snitt/tree/91f347c5b09514604ffcf71d972d5e90cf42c37a/experiment).
 
 ## Independent windows and background applications
 
@@ -202,18 +202,24 @@ so worker threads and GC can progress.
 
 ## Verification
 
-Use Jolt 0.8.16 or newer and Snitt's supported Qt SDK (macOS Qt 6.11.2/6.11.1;
-Windows UCRT64 Qt 6.11.2). For example, from the repository root:
+Use Jolt 0.8.16 or newer and Qt 6 with Quick, Quick Controls, and Multimedia
+(previously verified with macOS Qt 6.11.2/6.11.1 and Windows UCRT64 Qt 6.11.2).
+The test scripts also use Python 3; the media test needs `ffmpeg` on `PATH` and
+a Qt SDK containing the FFmpeg multimedia plugin (see [MEDIA.md](MEDIA.md)).
+From the repository root:
 
 ```sh
-export SNITT_QMAKE="$PWD/build/tools/qt-sdk/6.11.2/macos/bin/qmake6"
-./glimmer-qt/build-native
-./glimmer-qt/test-lifecycle
-./glimmer-qt/test-scheduling
-./glimmer-qt/test-windows
-./experiment/run --smoke-test
-(cd glimmer-qt/vendor/glimmer && jolt -M:test)
+./build-native
+./test-lifecycle
+./test-scheduling
+./test-windows
+(cd vendor/glimmer && jolt -M:test)
 ```
+
+The build finds `qmake6` or `qmake` on `PATH`, then Homebrew's Qt installation.
+Set `GLIMMER_QT_QMAKE` to select another Qt 6 qmake executable, and
+`GLIMMER_QT_BUILD_JOBS` to override the detected CPU count. The original
+`SNITT_QMAKE` and `SNITT_BUILD_JOBS` variables remain accepted as fallbacks.
 
 The lifecycle runner defaults to the offscreen Qt platform. Set
 `QT_QPA_PLATFORM=cocoa` for a macOS desktop run. Tests exercise real Qt signals,
@@ -234,14 +240,14 @@ with duplicate control IDs,
 per-window reload/close, close rejection and deferred acceptance, background
 lifetime with zero editors, a real retained QWidget, failed creation/reload/close,
 and full cleanup on quit. QtTest sends mouse and keyboard events through the
-window for hit testing and focus routing. Run `QT_QPA_PLATFORM=cocoa ./glimmer-qt/test-windows` with desktop access to additionally verify activation
+window for hit testing and focus routing. Run `QT_QPA_PLATFORM=cocoa ./test-windows` with desktop access to additionally verify activation
 and minimized restoration on macOS. The Cocoa run separately checks that
 topmost controls stack above an ordinary window and remain active while an
 input-transparent outline is visible. Offscreen execution cannot prove desktop
 focus or stacking. Windows execution is deferred for this change.
 
 On Windows, build `native/bridge.pro` with UCRT64 `qmake6` and
-`mingw32-make` from `glimmer-qt/build`, put that Qt SDK's `bin` on `PATH`, set
+`mingw32-make` from `build`, put that Qt SDK's `bin` on `PATH`, set
 `QT_PLUGIN_PATH` and `QML_IMPORT_PATH` from the same SDK, and run
 `QT_QPA_PLATFORM=offscreen jolt -M:test` from `glimmer-qt` (using PowerShell
 syntax for environment variables). Run `jolt -M:scheduling-test` there as well,

@@ -2,8 +2,8 @@
 set -eu
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-if [ -n "${SNITT_QMAKE:-}" ]; then
-    QMAKE="$SNITT_QMAKE"
+if [ -n "${GLIMMER_QT_QMAKE:-${SNITT_QMAKE:-}}" ]; then
+    QMAKE="${GLIMMER_QT_QMAKE:-$SNITT_QMAKE}"
 elif command -v qmake6 >/dev/null 2>&1; then
     QMAKE=qmake6
 elif command -v qmake >/dev/null 2>&1; then
@@ -11,7 +11,7 @@ elif command -v qmake >/dev/null 2>&1; then
 elif [ -x /opt/homebrew/opt/qtbase/bin/qmake ]; then
     QMAKE=/opt/homebrew/opt/qtbase/bin/qmake
 else
-    echo "Qt 6 qmake is required; set SNITT_QMAKE to its executable." >&2
+    echo "Qt 6 qmake is required; set GLIMMER_QT_QMAKE to its executable." >&2
     exit 1
 fi
 QMAKE="$(command -v "$QMAKE")"
@@ -19,6 +19,7 @@ case "$("$QMAKE" -query QT_VERSION)" in
     6.*) ;;
     *) echo "Qt 6 is required." >&2; exit 1 ;;
 esac
+BUILD_JOBS="$("$ROOT/bin/build-jobs")"
 
 mkdir -p "$ROOT/build"
 cd "$ROOT/build"
@@ -29,6 +30,6 @@ if [ -f Makefile ] && ! cmp -s build-config build-config.next; then
     make clean
 fi
 "$QMAKE" "$ROOT/native/bridge.pro" "$@"
-make -j"$("$ROOT/../bin/build-jobs")"
+make -j"$BUILD_JOBS"
 mv build-config.next build-config
 printf '%s\n' "$QMAKE" > "$ROOT/build/qmake-path"

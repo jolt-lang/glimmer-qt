@@ -79,8 +79,9 @@ owns or retains its pixel storage. For an external buffer, use `QImage`'s cleanu
 callback rather than returning a view of temporary memory. Qt retains implicit
 image copies through rendering; the provider's release callback runs when the
 session engine is destroyed. Keep the extension library loaded through that
-point. The application fixture in `experiment/native/extensions.cpp` demonstrates
-the ownership pattern; `./experiment/test-images` verifies its release.
+point. [Snitt's application fixture](https://github.com/isaksky/snitt/blob/91f347c5b09514604ffcf71d972d5e90cf42c37a/experiment/native/extensions.cpp)
+demonstrates the ownership pattern; `./experiment/test-images` in that repository
+verifies its release.
 
 ## Native factories and ownership
 
@@ -219,24 +220,25 @@ must remain GUI-affine throughout its lifetime.
 
 ## Application example and verification
 
-`experiment/src/hello/extensions.clj`, `experiment/qml/Spinner.qml`, and
-`experiment/native/extensions.cpp` provide a QML spinner with a content slot,
+The files `src/hello/extensions.clj`, `qml/Spinner.qml`, and `native/extensions.cpp`
+in [Snitt's experiment directory](https://github.com/isaksky/snitt/tree/91f347c5b09514604ffcf71d972d5e90cf42c37a/experiment)
+provide a QML spinner with a content slot,
 a native item with a completion hook, and a nonvisual QObject factory. The QML
 resource is compiled into the application extension library, not the backend.
 
 From the repository root:
 
 ```sh
-./experiment/test-extensions
-./glimmer-qt/test-objects
-QT_QPA_PLATFORM=cocoa ./experiment/test-extensions --demo
+./test-objects
 ```
 
-The first two commands run automated Qt integration checks offscreen. The object
-suite uses a test-only native service to check overloads, typed values, reactive
+This runs automated Qt integration checks offscreen. The object suite uses a
+test-only native service to check overloads, typed values, reactive
 notifications, worker signals, cancellation and borrowed lifetimes. It includes
-an external deadline for worker/GC failures. The demo
-rotates the spinner using an owner-scoped repeating job. Offscreen signal and
+an external deadline for worker/GC failures. In the Snitt repository,
+`./experiment/test-extensions` checks the application extension and
+`QT_QPA_PLATFORM=cocoa ./experiment/test-extensions --demo` rotates the spinner
+using an owner-scoped repeating job. Offscreen signal and
 lifetime checks do not establish physical keyboard/mouse behavior. Validation
 for this change is local macOS only; Windows execution is deferred.
 
@@ -297,6 +299,6 @@ use `:qt/subscriptions` with `:property "width"`, `"height"`, `"x"`, `"y"`,
 `"implicitWidth"`, or `"implicitHeight"`, and inherit the existing queued delivery
 and disposal semantics. Do not write layout-owned geometry from observers.
 
-Run `./glimmer-qt/test-layout` for offscreen geometry/reconciliation checks, or
-`QT_QPA_PLATFORM=cocoa ./glimmer-qt/test-layout` for the macOS desktop backend.
-Select the repository Qt SDK with `SNITT_QMAKE` as in `docs/development.md`.
+Run `./test-layout` for offscreen geometry/reconciliation checks, or
+`QT_QPA_PLATFORM=cocoa ./test-layout` for the macOS desktop backend.
+Select a Qt 6 SDK with `GLIMMER_QT_QMAKE`; see [LIFECYCLE.md](LIFECYCLE.md#verification).

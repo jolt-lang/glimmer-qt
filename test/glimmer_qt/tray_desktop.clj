@@ -8,7 +8,7 @@
   (try
     (qt/run-application!
      (fn []
-       (let [icon (str (System/getProperty "user.dir") "/../src/icons/scissors.svg")
+       (let [icon (str (System/getProperty "user.dir") "/test/icons/scissors.svg")
              tray-id (tray/create! icon :tooltip "Snitt tray desktop check")
              editor (atom nil)]
          (tray/add-action! tray-id :label "Capture region" :shortcut-hint "⌘⇧5"

@@ -29,11 +29,11 @@ library must stay loaded through session close. On macOS, the default publisher
 checks Qt's MIME ownership, URL opening uses `QDesktopServices`, and file reveal
 uses `/usr/bin/open -R`. On Windows, publication requires a registered native
 publisher, so the facade cannot mistake an optimistic Qt copy for success. The
-example adapter in `experiment/native/extensions.cpp` registers Snitt's existing
+example adapter in [Snitt's experiment](https://github.com/isaksky/snitt/blob/91f347c5b09514604ffcf71d972d5e90cf42c37a/experiment/native/extensions.cpp) registers Snitt's existing
 `snittClipboard::publish` implementation, retaining its Windows retry and image
 formats. Applications can likewise register their own robust file revealer.
 
-`./glimmer-qt/test-services` uses Qt's private offscreen clipboard, a small RGBA
+`./test-services` uses Qt's private offscreen clipboard, a small RGBA
 fixture, and test hooks for rejected publication and desktop calls. It never
 asserts anything about the user's desktop clipboard. The existing Windows
-contention tests in `tests/editor_tests.cpp` remain separate.
+contention tests in Snitt's `tests/editor_tests.cpp` remain separate.

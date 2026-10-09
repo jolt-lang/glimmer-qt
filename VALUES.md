@@ -76,7 +76,7 @@ NUL, before crossing the null-terminated ABI. Qt-specific values have explicit
 tags. The native decoder bounds nesting at 64 and rejects malformed payloads.
 This is an internal protocol, not a general JSON or EDN interface.
 
-Run `./glimmer-qt/test-values` using Jolt 0.8.16 and the supported local Qt SDK.
+Run `./test-values` using Jolt 0.8.16 and the supported local Qt SDK.
 It enables a test-only native Q_PROPERTY fixture; normal builds omit it. The
 build runner cleans generated objects when the SDK path or qmake arguments change.
 The focused suite exercises real native properties, failure preservation, typed

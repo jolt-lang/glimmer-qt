@@ -9,7 +9,7 @@
 (ffi/defcfn tray-events "gqt_test_tray_events" [:uint64] :int)
 
 (defn icon-path []
-  (str (System/getProperty "user.dir") "/../src/icons/scissors.svg"))
+  (str (System/getProperty "user.dir") "/test/icons/scissors.svg"))
 
 (defn -main [& _]
   (try

@@ -20,7 +20,7 @@
      [:hbox {:spacing 12}
       [:button {:id "tool" :icon-only true :label "Play" :accessible-name "Play recording"
                 :accessible-description "Toggle playback" :tooltip (str "Play (" shortcut ")")
-                :icon (source "../src/icons/play.svg") :checkable true :checked checked
+                :icon (source "test/icons/play.svg") :checkable true :checked checked
                 :sensitive enabled :on-click #(swap! clicks conj generation)}]
       [:button {:id "good" :label "Keep" :mode "good" :checked true :checkable true}]
       [:button {:id "bad" :label "Discard" :mode "bad" :checked true :checkable true}]

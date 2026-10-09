@@ -48,8 +48,8 @@ canvas focus explicitly with `focus!` (use `later!` if the target is remounted).
 
 ## Verification
 
-`./glimmer-qt/test-keyboard` uses QtTest key delivery through the window and
+`./test-keyboard` uses QtTest key delivery through the window and
 input-method events through the text control; it defaults to offscreen.
-`QT_QPA_PLATFORM=cocoa ./glimmer-qt/test-keyboard` exercises the local macOS
+`QT_QPA_PLATFORM=cocoa ./test-keyboard` exercises the local macOS
 desktop. Neither is evidence of a physical IME candidate-window interaction or
 Windows execution.
