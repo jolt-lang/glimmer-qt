@@ -1,5 +1,9 @@
 # Qt review playback
 
+Before distributing a binary with media support, follow the
+[binary release notice](THIRD_PARTY.md#developer-notice-before-distributing-binaries),
+including the checks for the selected Qt and FFmpeg runtime.
+
 Require `glimmer-qt.media` before mounting a `:video-player`. The tag is a visual
 Qt Quick surface with an owned `MediaPlayer`, `AudioOutput`, `VideoOutput`, and
 `QVideoSink`. It accepts `:id`, `:hexpand`, `:vexpand`, `:fill-mode` (`"fit"`,
