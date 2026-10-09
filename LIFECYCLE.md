@@ -5,7 +5,7 @@ This Jolt backend supports `:vbox`, `:hbox`, `:label`, `:entry`, and `:button`.
 `glimmer.core/reload!` remounts that initial root. Closing the final window exits
 this convenience runner by default; pass `:keep-alive true` for background use.
 An application can be run again after normal closure or an exception. The
-hello-world application remains in [Snitt's experiment directory](https://github.com/isaksky/snitt/tree/91f347c5b09514604ffcf71d972d5e90cf42c37a/experiment).
+counter and hello-world applications are available in [EXAMPLES.md](EXAMPLES.md).
 
 ## Independent windows and background applications
 

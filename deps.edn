@@ -2,7 +2,9 @@
  ;; Explicit lifecycle extension of upstream 09b8ab08705fa1e6f20145c2e99eaaba9ea812cc.
  ;; See LIFECYCLE.md; do not substitute the unextended upstream dependency.
  :deps {jolt-lang/glimmer {:local/root "vendor/glimmer"}}
- :aliases {:dialogs-test {:extra-paths ["test"] :main-opts ["-m" "glimmer-qt.dialogs-test"]}
+ :aliases {:counter {:extra-paths ["examples"] :main-opts ["-m" "glimmer-qt.counter"]}
+           :hello {:extra-paths ["examples"] :main-opts ["-m" "glimmer-qt.hello"]}
+           :dialogs-test {:extra-paths ["test"] :main-opts ["-m" "glimmer-qt.dialogs-test"]}
            :controls-test {:extra-paths ["test"] :main-opts ["-m" "glimmer-qt.controls-test"]}
            :text-test {:extra-paths ["test"] :main-opts ["-m" "glimmer-qt.text-test"]}
            :keyboard-test {:extra-paths ["test"] :main-opts ["-m" "glimmer-qt.keyboard-test"]}
@@ -17,6 +19,8 @@
            :services-test {:extra-paths ["test"] :main-opts ["-m" "glimmer-qt.services-test"]}
            :scheduling-test {:extra-paths ["test"] :main-opts ["-m" "glimmer-qt.scheduling-test"]}
            :test {:extra-paths ["test"] :main-opts ["-m" "glimmer-qt.lifecycle-test"]}}
+ :tasks {counter "./bin/run-example counter"
+         hello "./bin/run-example hello"}
  :jolt/native [{:name "glimmer-qt"
                 :darwin ["libglimmer_qt.dylib"
                          "build/libglimmer_qt.dylib"]

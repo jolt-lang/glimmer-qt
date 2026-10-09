@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+set -eu
+
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+case "${1:-}" in
+    counter|hello) EXAMPLE="$1"; shift ;;
+    *) echo "Usage: $0 {counter|hello}" >&2; exit 1 ;;
+esac
+if [ "$#" -ne 0 ]; then
+    echo "Usage: $0 {counter|hello}" >&2
+    exit 1
+fi
+JOLT_BIN="${JOLT:-jolt}"
+if ! command -v "$JOLT_BIN" >/dev/null 2>&1; then
+    echo "Jolt is required; install it or set JOLT to its executable." >&2
+    exit 1
+fi
+# Resolve a relative override before changing to the repository root.
+JOLT_BIN="$(command -v "$JOLT_BIN")"
+case "$JOLT_BIN" in
+    /*) ;;
+    *) JOLT_BIN="$(pwd)/$JOLT_BIN" ;;
+esac
+
+"$ROOT/build-native"
+QMAKE="$(cat "$ROOT/build/qmake-path")"
+# Match the plugins and QML imports to the SDK that built the bridge.
+export QT_PLUGIN_PATH="$("$QMAKE" -query QT_INSTALL_PLUGINS)"
+export QML_IMPORT_PATH="$("$QMAKE" -query QT_INSTALL_QML)"
+cd "$ROOT"
+exec "$JOLT_BIN" "-M:$EXAMPLE"
