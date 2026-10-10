@@ -13,7 +13,8 @@
 
 (defn -main [& _]
   (try
-    (let [desktop? (= "1" (System/getenv "SNITT_TRAY_DESKTOP_CHECK"))
+    (let [desktop? (= "1" (or (System/getenv "GLIMMER_QT_TRAY_DESKTOP_CHECK")
+                              (System/getenv "SNITT_TRAY_DESKTOP_CHECK")))
           calls (atom []) tray-id (atom nil) capture (atom nil)
           editor (atom nil) quit (atom nil) window (atom nil)
           finished (atom false)]

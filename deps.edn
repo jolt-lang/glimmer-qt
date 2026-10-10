@@ -19,7 +19,9 @@
            :services-test {:extra-paths ["test"] :main-opts ["-m" "glimmer-qt.services-test"]}
            :scheduling-test {:extra-paths ["test"] :main-opts ["-m" "glimmer-qt.scheduling-test"]}
            :test {:extra-paths ["test"] :main-opts ["-m" "glimmer-qt.lifecycle-test"]}}
- :tasks {counter "./bin/run-example counter"
+ :tasks {test {:doc "Run all automated suites, or a named suite (see --list)"
+               :task (apply shell "./bin/test" *command-line-args*)}
+         counter "./bin/run-example counter"
          hello "./bin/run-example hello"}
  :jolt/native [{:name "glimmer-qt"
                 :darwin ["libglimmer_qt.dylib"

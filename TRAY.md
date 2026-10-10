@@ -29,7 +29,7 @@ callbacks. Activation receives `:context`, `:double-click`, `:trigger`,
 `:middle-click` or `:unknown`. Tray actions, like other Qt mutations, must run
 on the GUI thread; use `qt/later!` to schedule work from a worker.
 
-Run `./test-tray` for offscreen native/model checks. On macOS, run
-`SNITT_TRAY_DESKTOP_CHECK=1 QT_QPA_PLATFORM=cocoa ./test-tray` to verify the
+Run `./bin/test tray` for offscreen native/model checks. On macOS, run
+`GLIMMER_QT_TRAY_DESKTOP_CHECK=1 QT_QPA_PLATFORM=cocoa ./bin/test tray` to verify the
 actual menu-bar tray and popup menu. The short-lived manual demo is
 `QT_QPA_PLATFORM=cocoa jolt -A:tray-test -m glimmer-qt.tray-desktop`.

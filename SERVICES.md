@@ -33,7 +33,7 @@ example adapter in [Snitt's experiment](https://github.com/isaksky/snitt/blob/91
 `snittClipboard::publish` implementation, retaining its Windows retry and image
 formats. Applications can likewise register their own robust file revealer.
 
-`./test-services` uses Qt's private offscreen clipboard, a small RGBA
+`./bin/test services` uses Qt's private offscreen clipboard, a small RGBA
 fixture, and test hooks for rejected publication and desktop calls. It never
 asserts anything about the user's desktop clipboard. The existing Windows
 contention tests in Snitt's `tests/editor_tests.cpp` remain separate.

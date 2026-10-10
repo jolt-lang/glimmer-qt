@@ -23,7 +23,8 @@
 
 (defn run-checks! []
   (let [session @widget/session
-        dir (System/getenv "SNITT_SERVICES_FIXTURE_DIR")
+        dir (or (System/getenv "GLIMMER_QT_SERVICES_FIXTURE_DIR")
+                (System/getenv "SNITT_SERVICES_FIXTURE_DIR"))
         source (str dir "/source # ü.png")
         output (str dir "/saved & ü.png")
         url "https://example.test/a%23%20%C3%BC?q=x%26y"]

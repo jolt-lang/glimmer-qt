@@ -229,7 +229,7 @@ resource is compiled into the application extension library, not the backend.
 From the repository root:
 
 ```sh
-./test-objects
+./bin/test objects
 ```
 
 This runs automated Qt integration checks offscreen. The object suite uses a
@@ -299,6 +299,6 @@ use `:qt/subscriptions` with `:property "width"`, `"height"`, `"x"`, `"y"`,
 `"implicitWidth"`, or `"implicitHeight"`, and inherit the existing queued delivery
 and disposal semantics. Do not write layout-owned geometry from observers.
 
-Run `./test-layout` for offscreen geometry/reconciliation checks, or
-`QT_QPA_PLATFORM=cocoa ./test-layout` for the macOS desktop backend.
+Run `./bin/test layout` for offscreen geometry/reconciliation checks, or
+`QT_QPA_PLATFORM=cocoa ./bin/test layout` for the macOS desktop backend.
 Select a Qt 6 SDK with `GLIMMER_QT_QMAKE`; see [LIFECYCLE.md](LIFECYCLE.md#verification).

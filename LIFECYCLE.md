@@ -209,12 +209,14 @@ a Qt SDK containing the FFmpeg multimedia plugin (see [MEDIA.md](MEDIA.md)).
 From the repository root:
 
 ```sh
-./build-native
-./test-lifecycle
-./test-scheduling
-./test-windows
-(cd vendor/glimmer && jolt -M:test)
+./bin/test lifecycle
+./bin/test scheduling
+./bin/test windows
+./bin/test glimmer
 ```
+
+Use `jolt test` or `./bin/test all` to run all automated suites. The shared
+runner replaces the root `test-*` scripts; see [TESTING.md](TESTING.md).
 
 The build finds `qmake6` or `qmake` on `PATH`, then Homebrew's Qt installation.
 Set `GLIMMER_QT_QMAKE` to select another Qt 6 qmake executable, and
@@ -240,7 +242,7 @@ with duplicate control IDs,
 per-window reload/close, close rejection and deferred acceptance, background
 lifetime with zero editors, a real retained QWidget, failed creation/reload/close,
 and full cleanup on quit. QtTest sends mouse and keyboard events through the
-window for hit testing and focus routing. Run `QT_QPA_PLATFORM=cocoa ./test-windows` with desktop access to additionally verify activation
+window for hit testing and focus routing. Run `QT_QPA_PLATFORM=cocoa ./bin/test windows` with desktop access to additionally verify activation
 and minimized restoration on macOS. The Cocoa run separately checks that
 topmost controls stack above an ordinary window and remain active while an
 input-transparent outline is visible. Offscreen execution cannot prove desktop

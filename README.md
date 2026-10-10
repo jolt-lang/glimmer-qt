@@ -4,3 +4,15 @@
 > and a few changes in the vendored Glimmer dependency need to be upstreamed.
 
 A Qt Quick backend for Glimmer on Jolt. See [EXAMPLES.md](EXAMPLES.md) to get started.
+
+Build the native bridge with `./build-native`. Run tests with:
+
+```sh
+jolt test                # all automated suites, including vendored Glimmer
+jolt test lifecycle      # one suite
+jolt test --list         # available suites
+```
+
+`./bin/test` provides the same interface. It replaces the individual root
+`test-*` scripts and handles building, Qt setup, fixtures, and process deadlines.
+See [TESTING.md](TESTING.md) for dependencies and desktop checks.

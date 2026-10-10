@@ -58,7 +58,7 @@ Review both standalone bridge releases and applications that include the bridge.
    not automatically suitable for redistribution. See
    [FFmpeg's licensing guidance](https://ffmpeg.org/legal.html).
 
-`test-media` invokes a local `ffmpeg` with libx264 to generate a temporary test
+`bin/test media` invokes a local `ffmpeg` with libx264 to generate a temporary test
 clip. That test tool is separate from the FFmpeg libraries loaded by Qt's
 multimedia plugin; inspect the plugin's actual dependencies for a release.
 

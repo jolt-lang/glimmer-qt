@@ -1,0 +1,190 @@
+#!/usr/bin/env python3
+"""Run Qt integration suites, defaulting to all automated suites offscreen."""
+
+import argparse
+import base64
+from contextlib import contextmanager
+import os
+from pathlib import Path
+import plistlib
+import shutil
+import subprocess
+import sys
+import tempfile
+
+from qt import ROOT, build_environment, cli, executable, jolt
+
+
+# Keep production suites together so `all` only builds each configuration once.
+PRODUCTION = ("lifecycle", "scheduling", "layout", "media")
+SUITES = {
+    "lifecycle": "mount, reconcile, reload, and clean up",
+    "scheduling": "timers, workers, GC, and shutdown",
+    "layout": "geometry and layout-loop diagnostics",
+    "media": "playback and decoding (requires FFmpeg)",
+    "values": "typed native properties",
+    "objects": "QObject methods, subscriptions, and lifetimes",
+    "windows": "application windows, overlays, and focus",
+    "controls": "sliders and progress controls",
+    "actions": "buttons, icons, and action content",
+    "keyboard": "keyboard events and shortcuts",
+    "pointer": "pointer input and routing",
+    "text": "editing, paste, and input methods",
+    "dialogs": "dialogs and file selection",
+    "tray": "tray icons and menus",
+    "services": "isolated clipboard and desktop-service hooks",
+    "glimmer": "vendored Glimmer's own unit tests",
+    "macos-activation": "macOS desktop activation (explicit only)",
+}
+AUTOMATED = tuple(name for name in SUITES if name != "macos-activation")
+
+
+def run_process(command, env, timeout, cwd=ROOT, inspect_output=False):
+    """Bound native deadlocks, retaining diagnostics for output-sensitive suites."""
+    if not inspect_output:
+        return subprocess.run(command, cwd=cwd, env=env, timeout=timeout).returncode, ""
+    # A file keeps noisy native logging from filling a pipe. Replay diagnostics
+    # even on failure/timeout, before the temporary fixture directory disappears.
+    with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as log:
+        try:
+            result = subprocess.run(command, cwd=cwd, env=env, timeout=timeout,
+                                    stdout=log, stderr=subprocess.STDOUT)
+        finally:
+            log.seek(0)
+            output = log.read()
+            print(output, end="", flush=True)
+        return result.returncode, output
+
+
+@contextmanager
+def fixture(name, runtime, args, env):
+    """Own temporary files for the whole child-process lifetime."""
+    if name not in ("dialogs", "services", "media"):
+        yield runtime, args
+        return
+    with tempfile.TemporaryDirectory(prefix=f"gqt-{name}-") as directory:
+        directory = Path(directory).resolve()
+        if name == "dialogs":
+            path = directory / "space café 日本.png"
+            path.write_bytes(base64.b64decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII="))
+            env["GQT_DIALOG_FIXTURE"] = str(path)
+            if args == ["--native-desktop"]:
+                bundle = directory / "GlimmerDialogs.app/Contents"
+                (bundle / "MacOS").mkdir(parents=True)
+                target = bundle / "MacOS/GlimmerDialogs"
+                shutil.copy2(runtime, target)
+                (bundle / "Info.plist").write_bytes(plistlib.dumps({
+                    "CFBundleExecutable": "GlimmerDialogs",
+                    "CFBundleName": "GlimmerDialogs",
+                    "CFBundleIdentifier": "org.glimmer.dialog-verification",
+                    "CFBundlePackageType": "APPL",
+                }))
+                runtime = str(target)
+                print(f"Desktop fixture app: {bundle.parent}", flush=True)
+        elif name == "services":
+            env["GLIMMER_QT_SERVICES_FIXTURE_DIR"] = str(directory)
+        elif name == "media":
+            # Allow a compatible multimedia plugin installed outside the SDK.
+            build_plugin_path = env["QT_PLUGIN_PATH"]
+            env["QT_PLUGIN_PATH"] = os.environ.get("QT_PLUGIN_PATH") or build_plugin_path
+            env["QT_MEDIA_BACKEND"] = env.get("QT_MEDIA_BACKEND") or "ffmpeg"
+            if env["QT_QPA_PLATFORM"] == "offscreen":
+                env["QT_FFMPEG_DECODING_HW_DEVICE_TYPES"] = env.get("QT_FFMPEG_DECODING_HW_DEVICE_TYPES") or ","
+            if env["QT_MEDIA_BACKEND"] == "ffmpeg":
+                roots = [build_plugin_path, *env["QT_PLUGIN_PATH"].split(os.pathsep)]
+                if not any(list((Path(root) / "multimedia").glob("*ffmpegmediaplugin*"))
+                           for root in roots if root):
+                    raise RuntimeError("Qt's FFmpeg multimedia plugin is required; select an SDK "
+                                       "with GLIMMER_QT_QMAKE or set QT_PLUGIN_PATH.")
+            path = directory / "static.mp4"
+            subprocess.run([executable("ffmpeg"), "-hide_banner", "-loglevel", "error", "-y",
+                            "-f", "lavfi", "-i", "color=c=red:s=160x90:r=1",
+                            "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=44100",
+                            "-t", "3", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+                            "-c:a", "aac", "-shortest", str(path)], check=True, timeout=60)
+            args = [str(path)]
+        yield runtime, args
+
+
+def run_suite(name, runtime, args, base_env):
+    env = base_env.copy()
+    env["QT_QPA_PLATFORM"] = env.get("QT_QPA_PLATFORM") or "offscreen"
+    timeout = 45 if name in ("tray", "services") else 60
+    if name == "services":
+        env["QT_QPA_PLATFORM"] = "offscreen"
+    if name == "macos-activation":
+        env.update(QT_QPA_PLATFORM="cocoa", JOLT_AOT_CACHE="0")
+        for raise_process in ("1", "0"):
+            print(f"QT_MAC_SET_RAISE_PROCESS={raise_process}", flush=True)
+            env["QT_MAC_SET_RAISE_PROCESS"] = raise_process
+            code, _ = run_process([runtime, "-A:test", "-m", "glimmer-qt.macos-activation-test"],
+                                  env, 30)
+            if code:
+                return code
+        return 0
+    if name == "glimmer":
+        return run_process([runtime, "-M:test"], env, timeout, cwd=ROOT / "vendor/glimmer")[0]
+    if name == "dialogs" and args == ["--native-desktop"]:
+        env["QT_QPA_PLATFORM"] = "cocoa"
+        timeout = 240
+    alias = "test" if name == "lifecycle" else f"{name}-test"
+    with fixture(name, runtime, args, env) as (runtime, args):
+        code, output = run_process([runtime, f"-M:{alias}", *args], env, timeout,
+                                   inspect_output=name in ("layout", "media"))
+    if code:
+        return code
+    if name == "layout" and any(text in output.lower() for text in ("binding loop", "recursive rearrange")):
+        raise RuntimeError("Qt reported a geometry binding/layout loop")
+    if name == "media" and not any(line.startswith("PASS:") for line in output.splitlines()):
+        raise RuntimeError("Media verification did not report completion")
+    return 0
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--list", action="store_true", help="list suites without building")
+    parser.add_argument("suite", nargs="?", default="all", choices=("all", *SUITES))
+    parser.add_argument("args", nargs=argparse.REMAINDER, help="optional screenshot for actions/controls, "
+                        "or --native-desktop for dialogs")
+    options = parser.parse_args()
+    if options.list:
+        for name, description in SUITES.items():
+            print(f"{name:18} {description}")
+        return 0
+    name, args = options.suite, options.args
+    if args[:1] == ["--"]:
+        args = args[1:]
+    if args and not ((name in ("actions", "controls") and len(args) == 1)
+                     or (name == "dialogs" and args == ["--native-desktop"])):
+        parser.error("only actions/controls accept a screenshot path; dialogs accepts --native-desktop")
+    if (name == "macos-activation" or (name == "dialogs" and args == ["--native-desktop"])) and sys.platform != "darwin":
+        parser.error("this desktop check requires macOS")
+    runtime = jolt()
+    selected = AUTOMATED if name == "all" else (name,)
+    configuration = None
+    env = os.environ.copy()
+    failures = []
+    for name in selected:
+        print(f"\n== {name} ==", flush=True)
+        if name != "glimmer":
+            test_fixtures = name not in PRODUCTION
+            if configuration != test_fixtures:
+                env = build_environment(test_fixtures)
+                configuration = test_fixtures
+        try:
+            code = run_suite(name, runtime, args, env)
+            if code:
+                raise RuntimeError(f"process exited with status {code}")
+            print(f"PASS {name}", flush=True)
+        except (OSError, RuntimeError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+            print(f"FAIL {name}: {error}", file=sys.stderr, flush=True)
+            failures.append(name)
+    print(f"\n{len(selected) - len(failures)}/{len(selected)} suites passed", flush=True)
+    if failures:
+        print("Failed: " + ", ".join(failures), file=sys.stderr)
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(cli(main))

@@ -28,7 +28,7 @@ changes through the owned QObject subscription path. Read initial state with
 start playback, then pause and seek in `:on-first-frame` before unmuting. A
 short fallback timer can finish priming if the backend does not produce a frame.
 
-`./test-media` uses `ffmpeg` on `PATH` to generate a static-frame MP4 and
+`./bin/test media` uses `ffmpeg` on `PATH` to generate a static-frame MP4 and
 loads the selected Qt SDK's FFmpeg multimedia backend. The SDK must include
 that plugin; the standalone `ffmpeg` command alone is insufficient. Use
 `GLIMMER_QT_QMAKE` to select an SDK containing it, or `QT_PLUGIN_PATH` for another
@@ -39,5 +39,5 @@ delivery, typed states and errors, source replacement, and teardown. The
 default offscreen run checks decoding and sink delivery using software decoding
 via [Qt's FFmpeg configuration](https://doc.qt.io/qt-6/advanced-ffmpeg-configuration.html).
 Run with
-`QT_QPA_PLATFORM=cocoa SNITT_MEDIA_SCREENSHOT=/tmp/media.png` to capture the
+`QT_QPA_PLATFORM=cocoa GLIMMER_QT_MEDIA_SCREENSHOT=/tmp/media.png` to capture the
 window on the macOS desktop.

@@ -22,7 +22,7 @@ for preparation before a measured total is available. `:track-color`,
 spinner controlled by `:running`. These controls accept `:accessible-name`;
 the application supplies user-facing status text and export policy.
 
-`./test-controls` exercises controlled writes, real pointer drag,
+`./bin/test controls` exercises controlled writes, real pointer drag,
 keyboard input, disabled and short/zero ranges, and determinate/indeterminate
 progress on the local macOS Qt build. It defaults to offscreen input testing.
 
@@ -75,7 +75,7 @@ font properties change. No temporary widgets are allocated.
 
 ## Verification
 
-`./test-actions [screenshot.png]` builds the test bridge and exercises
+`./bin/test actions [screenshot.png]` builds the test bridge and exercises
 real Qt mouse/key events, reactive state/handlers, accessible properties, custom
 composition, metrics, and reset behavior. It defaults to offscreen rendering.
 Use `QT_QPA_PLATFORM=cocoa` for a local macOS desktop run and `QT_SCALE_FACTOR=2`
@@ -132,8 +132,8 @@ attached items, including transforms and different windows. Pass nil for `to`
 to obtain global desktop coordinates. Negative origins and fractional pixels
 are preserved; stale handles, unattached items and nonfinite points fail.
 
-Run `./test-pointer` for offscreen Qt window input tests, or
-`QT_QPA_PLATFORM=cocoa ./test-pointer` for local macOS desktop delivery.
+Run `./bin/test pointer` for offscreen Qt window input tests, or
+`QT_QPA_PLATFORM=cocoa ./bin/test pointer` for local macOS desktop delivery.
 These send mouse/wheel events through Qt hit testing and grabbing, not QML signal
 invocation. The offscreen run also models a negative desktop window origin.
 
@@ -189,8 +189,8 @@ Use the handlers to implement application policy and restore focus as appropriat
 angle/pixel deltas, modifiers, and inversion. Only literal `true` consumes it.
 The active editor keeps its cursor visible in its containing scroll viewport.
 
-`./test-text` sends Qt key, clipboard paste, input-method and wheel
+`./bin/test text` sends Qt key, clipboard paste, input-method and wheel
 events through a real Qt window using the offscreen platform. For macOS desktop
-verification use `QT_QPA_PLATFORM=cocoa ./test-text`. Clipboard tests
+verification use `QT_QPA_PLATFORM=cocoa ./bin/test text`. Clipboard tests
 restore the original MIME formats. These are distinct execution modes; neither
 claims Windows validation.
