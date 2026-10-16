@@ -66,6 +66,28 @@
       (reset! show true)
       (is (= ["first" "tail"] (labels-of vbox))))))
 
+;; A keyed pass that reorders its children leaves a hidden component's slot
+;; without a widget, so when the component reappears it must be placed by the
+;; slot order the reorder left behind, not the order it was mounted in.
+(deftest a-hidden-keyed-component-reappears-in-its-reordered-slot
+  (let [show-b? (r/atom true) order (r/atom [:a :b :c]) win (mock/widget :window {})
+        row (fn [k] [:label {:label (name k)}])
+        comps {:a (fn [] (row :a))
+               :b (fn [] (when @show-b? (row :b)))
+               :c (fn [] (row :c))}
+        app (fn [] (into [:vbox {}] (for [k @order] [(comps k) {:key k}])))]
+    (ui/mount win :window [app])
+    (let [vbox (first (mock/children win))
+          [a-id _ c-id] (mock/ids vbox)]
+      (is (= ["a" "b" "c"] (labels-of vbox)))
+      (reset! show-b? false)
+      (is (= ["a" "c"] (labels-of vbox)))
+      (reset! order [:b :c :a])
+      (is (= ["c" "a"] (labels-of vbox)))
+      (reset! show-b? true)
+      (is (= ["b" "c" "a"] (labels-of vbox)) "placed by the reordered slots, not the mounted ones")
+      (is (= [c-id a-id] (subvec (mock/ids vbox) 1)) "the siblings are moved around, not recreated"))))
+
 (deftest a-slot-turning-from-a-component-into-an-element-keeps-its-place
   (let [native? (r/atom false) win (mock/widget :window {})
         comp (fn [] [:label {:label "comp"}])
