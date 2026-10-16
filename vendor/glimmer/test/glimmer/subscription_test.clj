@@ -53,6 +53,35 @@
     (ui/unmount! root win :window)
     (is (empty? @(:watches which)))))
 
+;; A different component fn at a slot reuses the expanded subtree in place: only
+;; the previous Form-2 render fn is discarded. A nested component both fns share
+;; therefore keeps its widget and its local state, while the slot's subscription
+;; scope is refreshed to what the new fn reads. Full teardown would pass the
+;; subscription check too, so the widget identity and the constructor count are
+;; what pin the chosen behaviour.
+(deftest a-different-component-fn-at-a-slot-reuses-its-expanded-subtree
+  (let [which (r/atom true) only-a (r/atom 0) constructions (atom 0) nested-state (atom nil)
+        win (mock/widget :window {})
+        nested (fn [] (swap! constructions inc)
+                 (let [n (r/atom 0)]
+                   (reset! nested-state n)
+                   (fn [] [:label {:label (str "n=" @n)}])))
+        a (fn [] @only-a [:vbox [nested]])
+        z (fn [] [:vbox [nested]])
+        root (ui/mount win :window [(fn [] [(if @which a z)])])
+        vbox-id (first (mock/ids win))]
+    (reset! @nested-state 5)
+    (is (= 1 @constructions))
+    (is (= 1 (count @(:watches only-a))))
+    (is (= "n=5" (label-of (first (mock/children win)))))
+    (reset! which false)
+    (is (= vbox-id (first (mock/ids win))) "the container widget is reused, not recreated")
+    (is (= 1 @constructions) "the nested Form-2 constructor is not re-invoked")
+    (is (= "n=5" (label-of (first (mock/children win)))) "so its local state survives")
+    (is (empty? @(:watches only-a)) "a cell the new fn does not read is dropped")
+    (ui/unmount! root win :window)
+    (is (empty? @(:watches which)))))
+
 (deftest replacing-a-form-two-component-with-a-form-one-drops-its-render-fn
   (let [which (r/atom true) tick (r/atom 0) win (mock/widget :window {})
         two (fn [] (fn [] [:label {:label "two"}]))
