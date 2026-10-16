@@ -248,11 +248,15 @@
   each widget to sit after the previous one (the first goes to position 0).
   Called only when keyed-plan says a reorder is needed. Repositioning does not
   recreate widgets, so signal handlers and the instance atoms stay intact. A
-  no-op for backends without ordered containers."
+  keyed component that rendered nil contributes no widget, so its slot is
+  skipped and the next present widget goes after the nearest present one
+  before it, never after a nil handle. A no-op for backends without ordered
+  containers."
   [parent-widget parent-tag child-atoms]
   ;; resolve each child to its contributed widget — a keyed child may be a
-  ;; component, whose widget lives one level down on its expanded child.
-  (let [widgets (vec (map inst-widget child-atoms))
+  ;; component, whose widget lives one level down on its expanded child, or
+  ;; nothing at all when the component rendered nil.
+  (let [widgets (vec (keep inst-widget child-atoms))
         n (count widgets)]
     (when (pos? n)
       (doseq [i (range n)]
