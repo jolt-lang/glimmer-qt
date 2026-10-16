@@ -15,6 +15,18 @@
 (defn- label-of [win] (get-in @(first (mock/children win)) [:props :label]))
 (defn- labels [win] (mapv #(get-in @% [:props :label]) (mock/children win)))
 
+(defn- recording-backend
+  "The mock backend with every native op, :dispose! included, noting its name in
+  `calls` before it runs, so a test can show that a code path made none."
+  [calls]
+  (-> (reduce (fn [backend op]
+                (let [f (op mock/backend)]
+                  (assoc backend op (fn [& args] (swap! calls conj op) (apply f args)))))
+              mock/backend
+              [:create! :apply-props! :append-child! :remove-child! :replace-child!
+               :reorder-child!])
+      (assoc :dispose! (fn [_] (swap! calls conj :dispose!) nil))))
+
 (deftest explicit-lifecycle-follows-reload-without-a-mount-return-value
   (let [cell (r/atom 0) win (mock/widget :window {})]
     (b/register!
@@ -43,6 +55,27 @@
     (is (empty? @(:watches cell)))
     (reset! cell 1)
     (is (= 0 (label-of win)))))
+
+(deftest a-legacy-loop-that-throws-still-releases-its-root
+  (let [cell (r/atom 0) win (mock/widget :window {}) next-win (mock/widget :window {})
+        crash (ex-info "loop crashed" {})]
+    (b/register! (assoc mock/backend :run
+                        (fn [_ mount-root!] (mount-root! win :window) (throw crash))))
+    (is (identical? crash (try (ui/run (fn [] [:label {:label @cell}])) nil
+                               (catch Exception e e))))
+    ;; run's finalizer detached the tree although the loop never returned normally
+    (is (empty? @(:watches cell)))
+    (reset! cell 1)
+    (is (= [0] (labels win)))
+    ;; and released live-root: nothing is left to reload, and the next run is an ordinary one
+    (is (re-find #"no running app" (with-out-str (ui/reload!))))
+    (b/register! (assoc mock/backend :run
+                        (fn [_ mount-root!]
+                          (mount-root! next-win :window)
+                          (ui/reload! (fn [] [:label {:label "reloaded"}]))
+                          (is (= ["reloaded"] (labels next-win)))
+                          nil)))
+    (ui/run (fn [] [:label {:label "next"}]))))
 
 (deftest queued-reloads-belong-to-their-run
   (let [queue (atom []) win (mock/widget :window {}) phase (atom 0)]
@@ -126,6 +159,56 @@
               (is (empty? (mock/children win))))))
     (ui/run (fn [] [:label {:label "first"}]))
     (is (empty? (mock/children win)))))
+
+(deftest abandoning-a-run-detaches-it-without-native-calls
+  (let [cell (r/atom 0) win (mock/widget :window {}) calls (atom []) queue (atom [])]
+    (b/register!
+     (assoc (recording-backend calls)
+            :schedule #(swap! queue conj %)
+            :run-lifecycle
+            (fn [_ {:keys [mount! abandon!]}]
+              (mount! win :window)
+              (ui/reload!)
+              (is (= [:create! :append-child! :remove-child! :create! :append-child!] @calls))
+              (is (= 1 (count @(:watches cell))))
+              ;; with the loop running, a change queues the re-render instead of drawing
+              (reset! b/loop-running? true)
+              (reset! cell 1)
+              (is (= 1 (count @queue)))
+              (reset! calls [])
+              ;; the native side is already gone: detach, but touch nothing
+              (abandon!)
+              (is (empty? @(:watches cell)))
+              (is (= [] @calls))
+              ;; the queued re-render finds its component disposed and draws nothing
+              ((first @queue))
+              (is (= [] @calls))
+              (is (= [0] (labels win))))))
+    (ui/run (fn [] [:label {:label @cell}]))
+    ;; run's own finalizer had nothing left to release, natively or otherwise
+    (is (= [] @calls))
+    (reset! cell 2)
+    (is (= [0] (labels win)))))
+
+(deftest unmount-abandon-and-reload-are-no-ops-once-a-run-is-abandoned
+  (let [cell (r/atom 0) win (mock/widget :window {}) calls (atom [])]
+    (b/register!
+     (assoc (recording-backend calls) :run-lifecycle
+            (fn [_ {:keys [mount! unmount! abandon!]}]
+              (mount! win :window)
+              (reset! calls [])
+              (abandon!)
+              (is (empty? @(:watches cell)))
+              (abandon!)
+              (unmount!)
+              ;; the abandoned run is no reload target: its window may already be gone
+              (ui/reload! (fn [] [:label {:label "into a destroyed window"}]))
+              (is (= [] @calls))
+              (is (= [0] (labels win))))))
+    (ui/run (fn [] [:label {:label @cell}]))
+    (is (= [] @calls))
+    (is (= [0] (labels win)))
+    (is (re-find #"no running app" (with-out-str (ui/reload!))))))
 
 (deftest abandon-detaches-only-the-selected-independent-root
   (let [cell (r/atom 0) a (mock/widget :window {}) b (mock/widget :window {})
