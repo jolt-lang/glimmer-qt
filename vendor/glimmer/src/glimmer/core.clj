@@ -554,27 +554,35 @@
   and :abandon! callbacks and owns the root's lifetime (see
   glimmer.backend/run-lifecycle); a legacy :run backend keeps its mount-root!
   contract. Either way the root's subscriptions are detached when run returns.
-  A later run replaces the root that reload! targets.
+  A later run replaces the root that reload! targets once its own root has
+  mounted; one the backend rejects before that leaves the live run in place.
 
   Requiring a backend namespace installs it — see glimmer-gtk.core for GTK4."
   [root-fn & {:as opts}]
   (let [state (atom nil)
         dispose! (fn [native?]
+                   ;; :inst is nil while reload! replaces the root and after a
+                   ;; replacement root threw: the run still owns its window then.
                    (when-let [{:keys [window tag inst]} @state]
                      (reset! state nil)
-                     (if native?
-                       (unmount! inst window tag)
-                       (do (dispose-tree! inst) (reset! inst nil)))))
+                     (when inst
+                       (if native?
+                         (unmount! inst window tag)
+                         (do (dispose-tree! inst) (reset! inst nil))))))
         lifecycle {:mount! (fn [window tag]
                              (when @state (dispose! true))
                              (reset! state {:window window :tag tag
                                             :inst (mount window tag [root-fn])
                                             :root-fn root-fn})
+                             ;; A later run takes over live-root once its root has
+                             ;; mounted, so a run the backend rejects before that
+                             ;; (Qt: a session is already active) leaves the live
+                             ;; run's reload! target in place. The finalizer below
+                             ;; releases only its own.
+                             (reset! live-root state)
                              nil)
                    :unmount! #(dispose! true)
                    :abandon! #(dispose! false)}]
-    ;; A later run takes over live-root; the finalizer below releases only its own.
-    (reset! live-root state)
     (try
       (b/run-lifecycle (or opts {}) lifecycle)
       (finally
@@ -599,7 +607,10 @@
   tree's subscriptions are detached before the new tree mounts, so those defonce
   cells carry exactly the live tree's subscriptions across reloads. A reload
   belongs to the run that was live when it was requested: one queued before that
-  run exits does not touch a later run. No-op when no app is running."
+  run exits does not touch a later run. A new root that throws while mounting
+  leaves the window empty but still the run's, with the previous root fn in
+  place: reload! again, with a corrected fn or none, to fill it. No-op when no
+  app is running."
   ([] (reload! nil))
   ([new-root-fn]
    (if-let [state @live-root]
@@ -607,8 +618,14 @@
        (fn []
          (when-let [{:keys [window tag inst] :as st} @state]
            (let [f (or new-root-fn (:root-fn st))]
-             (reset! state nil)
-             (unmount! inst window tag)
-             (reset! state (assoc st :inst (mount window tag [f]) :root-fn f))))))
+             ;; Only the instance leaves the state while the root is replaced:
+             ;; the run keeps its window, tag and previous root fn, so a new
+             ;; root that throws while mounting leaves an empty window a later
+             ;; reload! fills. The new instance and fn are published together
+             ;; once the mount has succeeded.
+             (swap! state assoc :inst nil)
+             (when inst (unmount! inst window tag))
+             (let [new-inst (mount window tag [f])]
+               (swap! state assoc :inst new-inst :root-fn f))))))
      (println "glimmer.core/reload!: no running app to reload"))
    nil))

@@ -13,6 +13,7 @@
     (try (test) (finally (reset! b/loop-running? false)))))
 
 (defn- label-of [win] (get-in @(first (mock/children win)) [:props :label]))
+(defn- labels [win] (mapv #(get-in @% [:props :label]) (mock/children win)))
 
 (deftest explicit-lifecycle-follows-reload-without-a-mount-return-value
   (let [cell (r/atom 0) win (mock/widget :window {})]
@@ -78,6 +79,53 @@
     (ui/run (fn [] [:label {:label "outer"}]))
     (is (empty? (mock/children outer)))
     (is (empty? (mock/children inner)))))
+
+(deftest a-run-rejected-before-mounting-leaves-the-live-root-alone
+  (let [win (mock/widget :window {}) phase (atom 0)]
+    (b/register!
+     (assoc mock/backend :run-lifecycle
+            (fn [_ {:keys [mount! unmount!]}]
+              (if (zero? @phase)
+                (do (swap! phase inc)
+                    (mount! win :window)
+                    ;; like Qt refusing a second session while one is active
+                    (is (thrown? Exception (ui/run (fn [] [:label {:label "second"}]))))
+                    (ui/reload! (fn [] [:label {:label "reloaded"}]))
+                    (is (= ["reloaded"] (labels win)))
+                    (unmount!))
+                (throw (ex-info "a session is already running" {}))))))
+    (ui/run (fn [] [:label {:label "first"}]))
+    (is (empty? (mock/children win)))))
+
+(deftest a-reload-whose-root-throws-keeps-the-window-for-the-next-reload
+  (let [win (mock/widget :window {})]
+    (b/register!
+     (assoc mock/backend :run-lifecycle
+            (fn [_ {:keys [mount! unmount!]}]
+              (mount! win :window)
+              (is (thrown? Exception (ui/reload! (fn [] (throw (ex-info "broken root" {}))))))
+              (is (empty? (mock/children win)))
+              ;; the broken fn was never adopted, so a bare reload retries the previous root
+              (ui/reload!)
+              (is (= ["first"] (labels win)))
+              (ui/reload! (fn [] [:label {:label "corrected"}]))
+              (is (= ["corrected"] (labels win)))
+              (unmount!)
+              (is (empty? (mock/children win))))))
+    (ui/run (fn [] [:label {:label "first"}]))))
+
+(deftest unmounting-after-a-failed-reload-releases-the-run
+  (let [win (mock/widget :window {})]
+    (b/register!
+     (assoc mock/backend :run-lifecycle
+            (fn [_ {:keys [mount! unmount!]}]
+              (mount! win :window)
+              (is (thrown? Exception (ui/reload! (fn [] (throw (ex-info "broken root" {}))))))
+              (unmount!)
+              (ui/reload! (fn [] [:label {:label "after unmount"}]))
+              (is (empty? (mock/children win))))))
+    (ui/run (fn [] [:label {:label "first"}]))
+    (is (empty? (mock/children win)))))
 
 (deftest abandon-detaches-only-the-selected-independent-root
   (let [cell (r/atom 0) a (mock/widget :window {}) b (mock/widget :window {})
