@@ -64,8 +64,10 @@
 
   `disposed` (an atom) is set true when the component is unmounted. Once disposed
   the watcher never renders again (its widgets are gone) and, on the next change,
-  removes itself from the notifying cell. Component subscription scopes also
-  detach every tracked cell immediately at disposal."
+  removes itself from the notifying cell — so re-mounting against a long-lived
+  (defonce) cell doesn't leave the old tree rendering into destroyed widgets or
+  pile up dead watchers. Component subscription scopes also detach every tracked
+  cell immediately at disposal, so that pruning is only a backstop."
   ([render] (make-rerender-watcher render b/loop-running? b/schedule (atom false)))
   ([render running? schedule] (make-rerender-watcher render running? schedule (atom false)))
   ([render running? schedule disposed]
@@ -374,9 +376,12 @@
     ;; Reset to a fresh comp skeleton — its native :type/:tag/:widget must NOT
     ;; survive, or a later comp->native transition would mistake the stale :type
     ;; and deref a nil :widget.
-    (when (and cur (or (:widget cur) (and (:v cur) (not= f (first (:v cur))))))
+    (when (and (:widget cur) (not= :comp (:type cur)))
+      ;; dispose before removing and resetting: the reset replaces the map that
+      ;; holds the subtree's :disposed atoms, so a dispose after it can no longer
+      ;; reach them and their watchers would keep firing against the reset instance.
       (dispose-tree! inst-atom)
-      (destroy-inst! inst-atom parent-widget parent-tag)
+      (b/remove-child! parent-tag parent-widget (:widget cur))
       (reset! inst-atom {:children [(atom nil)]}))
     ;; ensure exactly one child slot for the expanded root. Use `seq`, not
     ;; truthiness: a native leaf carries :children [], which is truthy but empty —
@@ -385,7 +390,10 @@
     ;; stash the current invocation so the watcher always uses fresh args.
     ;; Without this a Form-1 child that subscribes to its own reactives
     ;; re-renders with the initial v from mount, overwriting parent updates.
-    (swap! inst-atom assoc :v v :type :comp)
+    ;; A different component fn at this slot must not keep the previous one's
+    ;; Form-2 render fn, or the next re-render would draw the old component.
+    (swap! inst-atom (fn [c] (cond-> (assoc c :v v :type :comp)
+                               (nil? cached-render-fn) (dissoc :render-fn))))
     (let [child-atom (first (:children @inst-atom))
           ;; subscribe: any reactive read during render re-runs just this component.
           ;; The watcher is cached on the instance so it's the SAME fn every render;
@@ -428,8 +436,11 @@
 
 ;; --- public API --------------------------------------------------------------
 (defn mount
-  "Mount hiccup into a container. Returns an owned instance atom for unmount!.
-  Partial creation failures dispose subscriptions and already-created children."
+  "Mount `hiccup` (a native element, a component invocation [fn args...], or a
+  primitive) into a container widget. Returns the root instance atom. Wrap a
+  plain function in a vector ([my-app]) so it reconciles as a reactive component.
+  If rendering fails part-way, the subtree created so far is disposed and its
+  subscriptions detached before the error propagates."
   [container-widget container-tag hiccup]
   (let [root (atom nil)]
     (try
@@ -442,7 +453,10 @@
         (throw error)))))
 
 (defn unmount!
-  "Dispose subscriptions then native widgets. Idempotent for a mounted root."
+  "Remove a mounted root (the atom returned by mount) from its container, tearing
+  down its reactive subscriptions first so nothing renders into the removed tree.
+  The root atom is cleared even when the backend fails to remove the widget, so
+  a retry or abandon! afterwards is a no-op."
   [root-inst-atom container-widget container-tag]
   (dispose-tree! root-inst-atom)
   (try (destroy-inst! root-inst-atom container-widget container-tag)
@@ -458,9 +472,25 @@
   nil)
 
 (defn run
-  "Run a root with the installed backend. Lifecycle-aware backends receive
-  explicit :mount!, :unmount! and :abandon! callbacks via :run-lifecycle.
-  Callback return values are unspecified. See glimmer.backend's contract."
+  "Run an application with the installed backend. The backend creates a top-level
+  window, `root-fn` (a thunk returning hiccup) is mounted into it as a reactive
+  component, and the event loop runs until the app quits.
+
+  Options are passed through to the backend; the ones every backend understands:
+    :app-id        application id       (default \"glimmer.app\")
+    :title         window title         (default \"glimmer\")
+    :width         window width in px   (default 400)
+    :height        window height in px  (default 300)
+    :auto-quit-ms  if set, quit the loop after this many milliseconds
+                   (smoke/automated tests).
+
+  A backend that implements :run-lifecycle receives explicit :mount!, :unmount!
+  and :abandon! callbacks and owns the root's lifetime (see
+  glimmer.backend/run-lifecycle); a legacy :run backend keeps its mount-root!
+  contract. Either way the root's subscriptions are detached when run returns.
+  A later run replaces the root that reload! targets.
+
+  Requiring a backend namespace installs it — see glimmer-gtk.core for GTK4."
   [root-fn & {:as opts}]
   (let [state (atom nil)
         dispose! (fn [native?]
@@ -477,8 +507,8 @@
                              nil)
                    :unmount! #(dispose! true)
                    :abandon! #(dispose! false)}]
-    (when-not (compare-and-set! live-root nil state)
-      (throw (ex-info "A Glimmer root is already running." {})))
+    ;; A later run takes over live-root; the finalizer below releases only its own.
+    (reset! live-root state)
     (try
       (b/run-lifecycle (or opts {}) lifecycle)
       (finally
@@ -488,18 +518,31 @@
         (compare-and-set! live-root state nil)))))
 
 (defn reload!
-  "Remount the current root on its GUI thread, disposing the previous tree's
-  subscriptions immediately. The callback belongs to this run only; queued
-  reloads cannot affect a later session. No-op when no root is running."
+  "Re-mount the running app's root into its existing window, on the UI thread.
+  Call this from the nREPL REPL after redefining components to see the changes in
+  the SAME window, instead of opening a new one with run.
+
+  With no argument it re-mounts the current root component. That re-runs the root
+  and re-resolves the child components it references, so redefinitions of those
+  children take effect. To swap the root component itself (e.g. after redefining
+  it), pass the new fn: (glimmer.core/reload! my-app).
+
+  Re-mounting rebuilds the component tree, so state held in a component's own let
+  is reset. Keep state that should survive a reload in a top-level defonce reactive
+  cell (atom/cursor/reaction) that the components read — reagent-style. The old
+  tree's subscriptions are detached before the new tree mounts, so those defonce
+  cells carry exactly the live tree's subscriptions across reloads. A reload
+  belongs to the run that was live when it was requested: one queued before that
+  run exits does not touch a later run. No-op when no app is running."
   ([] (reload! nil))
   ([new-root-fn]
-   (when-let [state @live-root]
+   (if-let [state @live-root]
      (on-gui
        (fn []
-         (when (= state @live-root)
-           (when-let [{:keys [window tag inst] :as st} @state]
-             (let [f (or new-root-fn (:root-fn st))]
-               (reset! state nil)
-               (unmount! inst window tag)
-               (reset! state (assoc st :inst (mount window tag [f]) :root-fn f))))))))
+         (when-let [{:keys [window tag inst] :as st} @state]
+           (let [f (or new-root-fn (:root-fn st))]
+             (reset! state nil)
+             (unmount! inst window tag)
+             (reset! state (assoc st :inst (mount window tag [f]) :root-fn f))))))
+     (println "glimmer.core/reload!: no running app to reload"))
    nil))

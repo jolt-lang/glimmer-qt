@@ -1,6 +1,7 @@
 {:paths ["src"]
- ;; Explicit lifecycle extension of upstream 09b8ab08705fa1e6f20145c2e99eaaba9ea812cc.
- ;; See LIFECYCLE.md; do not substitute the unextended upstream dependency.
+ ;; Upstream d81af8fb2fa4164a2261db3c15fc7c93271dce60 plus the two pending upstream pull
+ ;; requests (reconciler-subscriptions, lifecycle-seam). See LIFECYCLE.md; do not
+ ;; substitute plain upstream main until both have landed.
  :deps {jolt-lang/glimmer {:local/root "vendor/glimmer"}}
  :aliases {:counter {:extra-paths ["examples"] :main-opts ["-m" "glimmer-qt.counter"]}
            :hello {:extra-paths ["examples"] :main-opts ["-m" "glimmer-qt.hello"]}

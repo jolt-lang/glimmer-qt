@@ -1,7 +1,11 @@
 # glimmer-qt
 
-> **Status:** Recently extracted from Snitt. The repository still needs cleanup,
-> and a few changes in the vendored Glimmer dependency need to be upstreamed.
+> **Status:** Recently extracted from Snitt. The repository still needs cleanup.
+> The vendored Glimmer is upstream main plus two pull requests awaiting review,
+> [#12](https://github.com/jolt-lang/glimmer/pull/12) and
+> [#13](https://github.com/jolt-lang/glimmer/pull/13) (see
+> [LIFECYCLE.md](LIFECYCLE.md#explicit-glimmer-contract-extension)); the
+> vendored copy goes away once they land.
 
 A Qt Quick backend for Glimmer on Jolt. See [EXAMPLES.md](EXAMPLES.md) to get started.
 

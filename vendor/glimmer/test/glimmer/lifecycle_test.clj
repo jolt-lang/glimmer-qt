@@ -1,4 +1,5 @@
 (ns glimmer.lifecycle-test
+  "The explicit root lifecycle seam between glimmer.core/run and a backend."
   (:require [clojure.test :refer [deftest is use-fixtures]]
             [glimmer.backend :as b]
             [glimmer.core :as ui]
@@ -10,6 +11,8 @@
     (mock/install!)
     (reset! b/loop-running? false)
     (try (test) (finally (reset! b/loop-running? false)))))
+
+(defn- label-of [win] (get-in @(first (mock/children win)) [:props :label]))
 
 (deftest explicit-lifecycle-follows-reload-without-a-mount-return-value
   (let [cell (r/atom 0) win (mock/widget :window {})]
@@ -30,45 +33,17 @@
     (ui/reload!)
     (is (empty? (mock/children win)))))
 
-(deftest partial-mount-detaches-new-child-subscriptions
-  (let [cell (r/atom 0) win (mock/widget :window {})
-        bad (fn [] @cell (throw (ex-info "render failed" {})))]
-    (is (thrown? Exception (ui/mount win :window [:vbox [bad]])))
+(deftest legacy-run-backends-detach-subscriptions-when-the-loop-exits
+  (let [cell (r/atom 0) win (mock/widget :window {})]
+    (b/register! (assoc mock/backend :run (fn [_ mount-root!] (mount-root! win :window) nil)))
+    (ui/run (fn [] [:label {:label @cell}]))
+    ;; A legacy backend owns its container, so the widget stays; the tree does not.
+    (is (= 1 (count (mock/children win))))
     (is (empty? @(:watches cell)))
-    (is (empty? (mock/children win)))))
+    (reset! cell 1)
+    (is (= 0 (label-of win)))))
 
-(deftest conditional-subscriptions-and-nil-components-dispose-immediately
-  (let [show (r/atom true) cell (r/atom "value") win (mock/widget :window {})
-        root (ui/mount win :window [(fn [] (when @show [:label {:label @cell}]))])]
-    (is (= 1 (count @(:watches cell))))
-    (reset! show false)
-    (is (empty? @(:watches cell)))
-    (is (empty? (mock/children win)))
-    (ui/unmount! root win :window)
-    (is (empty? @(:watches show)))))
-
-(deftest replacing-form-two-components-discards-state-and-subscriptions
-  (let [cell (r/atom 0) which (r/atom true) mounts (atom [])
-        a (fn [] (swap! mounts conj :a) (fn [] [:label {:label @cell}]))
-        z (fn [] (swap! mounts conj :z) (fn [] [:label {:label "z"}]))
-        win (mock/widget :window {})
-        root (ui/mount win :window [(fn [] [(if @which a z)])])]
-    (is (= [:a] @mounts))
-    (reset! which false)
-    (is (= [:a :z] @mounts))
-    (is (empty? @(:watches cell)))
-    (is (= "z" (get-in @(first (mock/children win)) [:props :label])))
-    (ui/unmount! root win :window)
-    (is (empty? @(:watches which)))))
-
-(deftest queued-renders-and-reloads-are-fenced-by-their-owner
-  (let [queue (atom []) renders (atom 0) disposed (atom false)
-        watcher (ui/make-rerender-watcher #(swap! renders inc) (atom true)
-                                          #(swap! queue conj %) disposed)]
-    (watcher nil)
-    (reset! disposed true)
-    ((first @queue))
-    (is (zero? @renders)))
+(deftest queued-reloads-belong-to-their-run
   (let [queue (atom []) win (mock/widget :window {}) phase (atom 0)]
     (b/register!
      (assoc mock/backend :schedule #(swap! queue conj %)
@@ -79,34 +54,30 @@
               (if (zero? @phase)
                 (do (ui/reload! (fn [] [:label {:label "stale"}])) (swap! phase inc))
                 (do ((first @queue))
-                    (is (= "current" (get-in @(first (mock/children win)) [:props :label])))))
+                    (is (= "current" (label-of win)))))
               (unmount!))))
     (ui/run (fn [] [:label {:label "first"}]))
     (ui/run (fn [] [:label {:label "current"}]))))
 
-(deftest concurrent-runs-cannot-overwrite-the-current-root
-  (let [start (promise) release (promise) denied (promise)
-        attempts (atom 0) admitted (atom 0)]
+(deftest a-later-run-takes-over-the-live-root
+  (let [outer (mock/widget :window {}) inner (mock/widget :window {}) phase (atom 0)]
     (b/register!
      (assoc mock/backend :run-lifecycle
-            (fn [_ _]
-              (swap! admitted inc)
-              @release)))
-    (let [runs (doall
-                (for [_ (range 8)]
-                  (future
-                    @start
-                    (try
-                      (ui/run (fn [] [:label]))
-                      (catch Exception _
-                        (when (= 7 (swap! attempts inc)) (deliver denied true)))))))]
-      (deliver start true)
-      (try
-        (is (= true (deref denied 5000 :timeout)))
-        (is (= 1 @admitted))
-        (finally
-          (deliver release true)
-          (doseq [run runs] @run))))))
+            (fn [_ {:keys [mount! unmount!]}]
+              (if (zero? @phase)
+                (do (swap! phase inc)
+                    (mount! outer :window)
+                    ;; a second run while this one is live replaces it quietly
+                    (ui/run (fn [] [:label {:label "inner"}]))
+                    (is (= "outer" (label-of outer)))
+                    (unmount!))
+                (do (mount! inner :window)
+                    (ui/reload! (fn [] [:label {:label "inner reloaded"}]))
+                    (is (= "inner reloaded" (label-of inner)))
+                    (unmount!))))))
+    (ui/run (fn [] [:label {:label "outer"}]))
+    (is (empty? (mock/children outer)))
+    (is (empty? (mock/children inner)))))
 
 (deftest abandon-detaches-only-the-selected-independent-root
   (let [cell (r/atom 0) a (mock/widget :window {}) b (mock/widget :window {})
@@ -117,7 +88,16 @@
     (ui/abandon! root-a)
     (is (= 1 (count @(:watches cell))))
     (reset! cell 1)
-    (is (= 0 (get-in @(first (mock/children a)) [:props :label])))
-    (is (= 1 (get-in @(first (mock/children b)) [:props :label])))
+    (is (= 0 (label-of a)))
+    (is (= 1 (label-of b)))
     (ui/unmount! root-b b :window)
     (is (empty? @(:watches cell)))))
+
+(deftest failed-attachment-disposes-the-new-widget
+  (let [win (mock/widget :window {}) disposed (atom [])]
+    (b/register! (assoc mock/backend
+                        :append-child! (fn [& _] (throw (ex-info "attach failed" {})))
+                        :dispose! (fn [w] (swap! disposed conj (:tag @w)))))
+    (is (thrown? Exception (ui/mount win :window [:label {:label "x"}])))
+    (is (= [:label] @disposed))
+    (is (empty? (mock/children win)))))

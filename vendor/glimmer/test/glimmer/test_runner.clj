@@ -20,9 +20,9 @@
         (prn e)))))
 
 (defn -main [& _]
-  (let [namespaces '[glimmer.ratom-test glimmer.ratom-protocol-test
+  (let [namespaces '[glimmer.ratom-test glimmer.ratom-protocol-test glimmer.table-test
                      glimmer.backend-test glimmer.core-test glimmer.reconcile-test
-                     glimmer.lifecycle-test]]
+                     glimmer.subscription-test glimmer.lifecycle-test]]
     ;; A namespace that fails to load registers no tests, so run-tests alone
     ;; would report it as a clean run; count it as a failure.
     (let [load-errors (count (for [ns namespaces
@@ -36,5 +36,7 @@
       (println "tests:" (:test results 0)
                "assertions:" (:pass results 0) "passed /"
                failed "failed")
+      ;; Tests that use futures leave the agent pool's threads alive; without
+      ;; this the process lingers for a minute after the last result prints.
       (shutdown-agents)
       (when (pos? failed) (System/exit 1)))))

@@ -83,13 +83,18 @@ composition. Their native QWidget descendants retain normal Qt ownership.
 
 ## Explicit Glimmer contract extension
 
-`vendor/glimmer` is an explicitly maintained copy of
-`jolt-lang/glimmer` at `09b8ab08705fa1e6f20145c2e99eaaba9ea812cc`, with its MIT
-license and upstream tests. `deps.edn` selects this local dependency deliberately;
-the upstream revision alone does **not** supply the lifetime contract below.
-The separate Glimmer reference checkout is not changed. These portable changes
-are isolated here for review/upstream coordination, rather than monkey-patching
-private reconciler state at runtime.
+`vendor/glimmer` is an explicitly maintained copy of `jolt-lang/glimmer` at
+`d81af8fb2fa4164a2261db3c15fc7c93271dce60` (main as of 2026-10-14) plus the two
+pull requests that carry these changes upstream,
+[#12](https://github.com/jolt-lang/glimmer/pull/12) (`reconciler-subscriptions`:
+subscription scopes and failed-render unwinding) and
+[#13](https://github.com/jolt-lang/glimmer/pull/13) (`lifecycle-seam`: the
+backend contract below), with its MIT license and upstream tests. `deps.edn`
+selects this local dependency deliberately; upstream main alone does **not**
+supply the lifetime contract below until both have landed. The separate Glimmer
+reference checkout is not changed. These portable changes are isolated here for
+review/upstream coordination, rather than monkey-patching private reconciler
+state at runtime.
 
 The optional backend `:run-lifecycle` operation receives options and a map of
 three callbacks. Their return values are unspecified:
@@ -117,8 +122,9 @@ scope, dropping dependencies no longer read. This uses the public
 `IReactiveCell` protocol, including custom cell implementations. Queued watcher
 work checks disposal before rendering, and queued reloads belong to their
 original run. Newly allocated child slots are recorded before rendering so
-partial creation can be unwound. Form-2 state resets on component replacement;
-rendering `nil` removes the previous child. These changes do not dispose
+partial creation can be unwound. A different component function at a slot
+discards the previous Form-2 render fn; rendering `nil` removes the previous
+child. These changes do not dispose
 application-owned ratoms, cursors, or reactions; their independent lifetimes
 remain with the application.
 

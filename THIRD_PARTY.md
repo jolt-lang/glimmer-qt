@@ -9,7 +9,7 @@ own licenses.
 
 | Material | License and provenance |
 | --- | --- |
-| `vendor/glimmer/` | MIT, copyright 2026 Dmitri Sotnikov. Preserve [its license](vendor/glimmer/LICENSE). This is a modified copy of upstream revision `09b8ab08705fa1e6f20145c2e99eaaba9ea812cc`; the changes are described in [LIFECYCLE.md](LIFECYCLE.md#explicit-glimmer-contract-extension). |
+| `vendor/glimmer/` | MIT, copyright 2026 Dmitri Sotnikov. Preserve [its license](vendor/glimmer/LICENSE). This is upstream revision `d81af8fb2fa4164a2261db3c15fc7c93271dce60` plus the two pending upstream pull requests described in [LIFECYCLE.md](LIFECYCLE.md#explicit-glimmer-contract-extension). |
 | `test/icons/scissors.svg` | Lucide, ISC, copied from Snitt's `src/icons/scissors.svg`. Preserve [the icon license](test/icons/LICENSE), copied intact from Snitt, including the upstream Feather notice for the icons to which it applies. |
 
 Include these notices when distributing the corresponding material, including
