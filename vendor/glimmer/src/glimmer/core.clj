@@ -241,8 +241,7 @@
     (swap! inst-atom assoc :children reused)
     ;; reconcile each child into its (possibly new) atom
     (doseq [i (range n)]
-      (reconcile-el! parent-widget parent-tag (nth new-children i) (nth reused i)))
-    (swap! inst-atom assoc :children reused)))
+      (reconcile-el! parent-widget parent-tag (nth new-children i) (nth reused i)))))
 
 (defn- reorder-keyed-widgets!
   "Force `child-atoms`' widgets into the given order within the parent, moving
@@ -290,14 +289,14 @@
                              (if (= :reuse (:kind slot))
                                (get old-by-key (:key slot))
                                (atom nil))))]
+      ;; Publish slots before rendering: a failed sibling must still be disposable.
       (swap! inst-atom assoc :children child-atoms)
       (doseq [i (range (count child-atoms))]
         (let [a (nth child-atoms i)]
           (reconcile-el! parent-widget parent-tag (nth new-children i) a)
           (swap! a assoc :key (nth new-keys i))))
       (when reorder?
-        (reorder-keyed-widgets! parent-widget parent-tag child-atoms))
-      (swap! inst-atom assoc :children child-atoms))))
+        (reorder-keyed-widgets! parent-widget parent-tag child-atoms)))))
 
 (defn- reconcile-children!
   "Reconcile `new-children` (hiccup) against the instance's existing children.
