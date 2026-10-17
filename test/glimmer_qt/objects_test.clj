@@ -217,11 +217,70 @@
     (check! (zero? @calls) "Queued object reference never retargets a reused address")
     (clean-objects!)))
 
+(defn- scramble
+  "Fisher-Yates driven by a fixed LCG seed, so a failing order reproduces."
+  [v seed]
+  (loop [v v i (dec (count v)) s seed]
+    (if (pos? i)
+      (let [s (mod (+ (* s 1103515245) 12345) 2147483648) j (mod s (inc i))]
+        (recur (assoc v i (v j) j (v i)) (dec i) s))
+      v)))
+
+(defn- child-order-run! []
+  ;; Visual rows interleaved with nonvisual services (every fourth key), re-sorted
+  ;; through Glimmer's keyed reconciler. After each step the registry and Qt's
+  ;; layout both follow the rendered order. Sixteen front insertions make a run;
+  ;; tag changes replace a row in place.
+  (let [base (vec (range 12))
+        state (r/atom {:rows base :buttons #{}})
+        service? #(zero? (mod % 4))
+        widgets @#'w/widgets
+        check-order! (fn []
+                       (let [rows (:rows @state)
+                             data (get @widgets (widget "rows"))]
+                         (check! (= (mapv #(str "r" %) rows)
+                                    (mapv #(get-in @widgets [% :props :id]) (#'w/children-of data)))
+                                 "Registry keeps the rendered child order")
+                         ;; Steps can outpace frames; lay the column out before reading positions.
+                         (o/invoke! (:target data) "ensurePolished()" [])
+                         (check! (apply < (map #(q/read-property (widget (str "r" %)) "y") (remove service? rows)))
+                                 "Qt lays visual children out in the rendered order")))
+        reversed (vec (reverse base))
+        plan (concat [{:rows reversed}]
+                     (map #(hash-map :rows %)
+                          (take 16 (rest (iterate #(vec (cons (peek %) (pop %))) reversed))))
+                     (map #(hash-map :rows (scramble base %)) (range 1 7))
+                     [{:rows base :buttons #{5}}
+                      {:rows [3 1 2 5 6 7 9 10 11]}
+                      {:rows [13 3 1 14 2 5 6 7 9 12 10 11]}
+                      {:rows [13 3 1 14 2 5 6 7 9 12 10 11] :buttons #{6}}
+                      {:rows [13 3 1 14 2 5 6 7 9 12 10 11] :buttons #{13 6}}
+                      {:rows [12 13 3 1 14 2 5 6 7 9 10 11] :buttons #{13}}])]
+    (run-steps!
+     (fn []
+       (init!)
+       (let [{:keys [rows buttons]} @state]
+         (into [:vbox {:id "rows"}]
+               (for [k rows]
+                 (cond (service? k) [:test/service {:key k :id (str "r" k)}]
+                       (buttons k) [:button {:key k :id (str "r" k) :label (str k)}]
+                       :else [:label {:key k :id (str "r" k) :label (str k)}])))))
+     (concat (for [step plan] (fn [] (check-order!) (reset! state (merge {:buttons #{}} step))))
+             [check-order!]))
+    (clean-objects!)))
+
+(defn child-order! []
+  (child-order-run!)
+  ;; Tiny ranks run containers out of room every few moves, so renumbering is
+  ;; exercised alongside runs and midpoints.
+  (with-redefs-fn {#'w/stride 4 #'w/step 1} child-order-run!))
+
 (defn -main [& _]
   (try
     (methods!)
     (fresh-and-replacement!)
     (reactive-and-controlled!)
+    (child-order!)
     (workers-and-native-destruction!)
     (failures-clean-up!)
     (println "PASS:" @assertions "QObject method and subscription checks")

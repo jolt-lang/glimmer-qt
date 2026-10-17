@@ -447,15 +447,88 @@
     (object/reconcile! widget (:qt/subscriptions props)))
   nil)
 
+;; Child order. A container ranks its children with sparse integers, a stride
+;; apart when appended, so a move takes a rank between the child's new
+;; neighbours and touches no other child. A move into an open gap takes its
+;; middle. A move that continues a run, right after or right before the child
+;; moved last (:last), steps from that child instead, so a run fills a gap rather
+;; than halving it each time. :tail is never below the highest rank in use, so an
+;; append needs nothing else. :order, a sorted map from rank to child, is built by
+;; the first move or replacement and kept from then on. When no rank is left
+;; between two neighbours, the container renumbers its children.
+(def ^:private stride (bit-shift-left 1 32))
+(def ^:private step (bit-shift-left 1 16))
+
+(defn- ordered
+  "The container's record with its :order, building and keeping it on first use."
+  [parent]
+  (let [data (live-widget parent)]
+    (if (:order data)
+      data
+      (let [order (into (sorted-map) (map (fn [[child rank]] [rank child]) (:ranks data)))]
+        (swap! widgets assoc-in [parent :order] order)
+        (assoc data :order order)))))
+
+(defn- children-of [data]
+  (if-let [order (:order data)]
+    (vals order)
+    (map key (sort-by val (:ranks data)))))
+
+(defn- add-last [data child]
+  (let [rank (+ (:tail data) stride)]
+    (cond-> (assoc data :tail rank :ranks (assoc (:ranks data) child rank))
+      (:order data) (update :order assoc rank child))))
+
+(defn- drop-child [data child]
+  (cond-> (update data :ranks dissoc child)
+    (:order data) (update :order dissoc (get (:ranks data) child))))
+
+(defn- rank-at [data child rank order]
+  (assoc data :ranks (assoc (:ranks data) child rank) :order (assoc order rank child)
+         :tail (max (:tail data) rank)))
+
+(defn- renumber [data children]
+  (let [ranks (iterate #(+ % stride) stride)]
+    (assoc data :ranks (zipmap children ranks)
+           :order (into (sorted-map) (map vector ranks children))
+           :tail (* stride (count children)))))
+
+(defn- move
+  "The container's record with child ranked right after sibling (first when nil),
+  or nil when it already is."
+  [data child sibling]
+  (let [rank (get-in data [:ranks child])
+        order (dissoc (:order data) rank)
+        low (if sibling (get-in data [:ranks sibling]) 0)
+        [high next] (first (subseq order > low))
+        gap (when high (- high low))
+        last (:last data)]
+    (some-> (cond
+              (and (< low rank) (or (nil? high) (< rank high))) nil
+              (nil? high) (rank-at data child (+ low stride) order)
+              (< gap 2) (let [others (vals order)
+                              n (if sibling (inc (count (take-while #(not= sibling %) others))) 0)]
+                          (renumber data (concat (take n others) [child] (drop n others))))
+              (and sibling (= sibling last)) (rank-at data child (+ low (min step (quot gap 2))) order)
+              (= next last) (rank-at data child (- high (min step (quot gap 2))) order)
+              :else (rank-at data child (+ low (quot gap 2)) order))
+            (assoc :last child))))
+
+(defn- item-before
+  "The nearest visual item ranked below rank. Nonvisual QObject children hold
+  ranks but have no place in Qt's stacking order, so they are skipped."
+  [order rank]
+  (some (fn [[_ child]] (when (:item? (get @widgets child)) child)) (rsubseq order < rank)))
+
 (defn- forget-tree! [widget]
   (when-let [data (get @widgets widget)]
     (let [failure (atom nil)]
       ;; Release every descendant even when an application hook throws.
-      (doseq [child (:children data)]
+      (doseq [child (children-of data)]
         (try (forget-tree! child) (catch Throwable e (reset! failure e))))
       (try (object/disconnect-owner! widget) (catch Throwable e (reset! failure e)))
       (when-let [parent (:parent data)]
-        (swap! widgets update-in [parent :children] #(vec (remove #{widget} %))))
+        (swap! widgets update parent drop-child widget))
       (swap! widgets dissoc widget)
       (try (when-let [hook (:dispose (get @registry (:tag data)))] (hook))
            (catch Throwable e (reset! failure e)))
@@ -478,7 +551,8 @@
                               (let [v (prop-value props key default)]
                                 [property (if (= type :color) (value/color v) v)])) schema))
         widget (q/create-registered @session source (value/encode initial) relay)]
-    (swap! widgets assoc widget {:tag tag :children [] :parent nil :props props})
+    (swap! widgets assoc widget {:tag tag :item? (= 1 (q/is-item widget)) :ranks {} :tail 0
+                                 :parent nil :props props})
     (try
       (when-not (= children :none)
         (swap! widgets assoc-in [widget :target]
@@ -492,7 +566,7 @@
 
 (defn register-window! [widget]
   (when-not (q/alive? widget) (throw (ex-info "Invalid Qt mount point." {})))
-  (swap! widgets assoc widget {:tag :window :children [] :parent nil :target widget})
+  (swap! widgets assoc widget {:tag :window :ranks {} :tail 0 :parent nil :target widget})
   widget)
 
 (defn forget-window!
@@ -519,12 +593,11 @@
   (check-container! tag parent)
   (when (:parent (live-widget child))
     (throw (ex-info "Qt child already has a parent." {:child child})))
-  (when (and (#{:window :scroll} tag) (seq (:children (live-widget parent))))
+  (when (and (#{:window :scroll} tag) (seq (:ranks (live-widget parent))))
     (throw (ex-info "A Qt window or scroll container accepts one root component." {})))
   (placement! tag child)
   (q/append (:target (live-widget parent)) child)
-  (swap! widgets assoc-in [child :parent] parent)
-  (swap! widgets update-in [parent :children] conj child)
+  (swap! widgets #(-> % (assoc-in [child :parent] parent) (update parent add-last child)))
   nil)
 
 (defn remove-child! [tag parent child]
@@ -538,12 +611,10 @@
   (when sibling
     (check-child! parent sibling)
     (when (= child sibling) (throw (ex-info "A Qt widget cannot follow itself." {}))))
-  (let [others (vec (remove #{child} (:children (live-widget parent))))
-        pos (if sibling (inc (count (take-while #(not= sibling %) others))) 0)]
-    (q/reorder (:target (live-widget parent)) child
-               (or (last (filter #(= 1 (q/is-item %)) (take pos others))) 0))
-    (swap! widgets assoc-in [parent :children]
-           (vec (concat (take pos others) [child] (drop pos others)))))
+  (when-let [moved (move (ordered parent) child sibling)]
+    (q/reorder (:target moved) child
+               (or (item-before (:order moved) (get-in moved [:ranks child])) 0))
+    (swap! widgets update parent merge (select-keys moved [:ranks :order :tail :last])))
   nil)
 
 (defn replace-child! [tag parent old-child new-child]
@@ -551,16 +622,18 @@
   (check-child! parent old-child)
   (when (:parent (live-widget new-child))
     (throw (ex-info "Replacement Qt widget already has a parent." {})))
-  (let [before (take-while #(not= old-child %) (:children (live-widget parent)))
-        sibling (last before)]
+  (let [rank (get-in (live-widget parent) [:ranks old-child])]
     ;; Native append validates cycles before the old tree is removed. Temporarily
     ;; having two roots is internal; no event loop or managed handler runs here.
     (placement! tag new-child)
     (q/append (:target (live-widget parent)) new-child)
-    (swap! widgets assoc-in [new-child :parent] parent)
-    (swap! widgets update-in [parent :children] conj new-child)
+    (swap! widgets #(-> % (assoc-in [new-child :parent] parent) (update parent add-last new-child)))
     (remove-child! tag parent old-child)
-    (reorder-child! tag parent new-child sibling))
+    ;; The replacement takes the rank the old child held.
+    (let [data (ordered parent)
+          order (dissoc (:order data) (get-in data [:ranks new-child]))]
+      (q/reorder (:target data) new-child (or (item-before order rank) 0))
+      (swap! widgets update parent rank-at new-child rank order)))
   nil)
 
 (defn dispatch! [widget event value]
