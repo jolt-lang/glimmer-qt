@@ -8,7 +8,7 @@ jolt test --list
 jolt test objects        # same as ./bin/test objects
 ```
 
-The runner requires Python 3, Jolt 0.8.16 or newer, a C++17 compiler, `make`,
+The runner requires Python 3, Jolt 0.8.22 or newer, a C++17 compiler, `make`,
 and Qt 6 with Quick, Quick Controls, Multimedia, and Test. The `media` suite
 also requires an `ffmpeg` executable with libx264 and a Qt SDK containing the
 FFmpeg multimedia plugin; see [MEDIA.md](MEDIA.md).

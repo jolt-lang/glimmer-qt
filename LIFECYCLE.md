@@ -208,8 +208,11 @@ so worker threads and GC can progress.
 
 ## Verification
 
-Use Jolt 0.8.16 or newer and Qt 6 with Quick, Quick Controls, and Multimedia
+Use Jolt 0.8.22 or newer and Qt 6 with Quick, Quick Controls, and Multimedia
 (previously verified with macOS Qt 6.11.2/6.11.1 and Windows UCRT64 Qt 6.11.2).
+Earlier Jolt releases give every atom the same hash, which makes Glimmer's
+children reconciliation quadratic in the number of siblings
+([jolt#1313](https://github.com/jolt-lang/jolt/issues/1313)).
 The test scripts also use Python 3; the media test needs `ffmpeg` on `PATH` and
 a Qt SDK containing the FFmpeg multimedia plugin (see [MEDIA.md](MEDIA.md)).
 From the repository root:

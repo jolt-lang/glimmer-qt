@@ -9,7 +9,7 @@ jolt hello
 
 Both commands build the native bridge, select the Qt plugins and QML imports
 from the same SDK, and open a window. Close the window to exit. They require
-Python 3, Jolt 0.8.16 or newer, a C++17 compiler, `make`, and Qt 6 with Quick, Quick Controls,
+Python 3, Jolt 0.8.22 or newer, a C++17 compiler, `make`, and Qt 6 with Quick, Quick Controls,
 and Multimedia; see [build requirements](LIFECYCLE.md#verification). These demos
 do not use media playback or require an FFmpeg executable.
 
