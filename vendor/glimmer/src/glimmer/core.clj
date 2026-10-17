@@ -247,9 +247,9 @@
   [parent-widget parent-tag new-children inst-atom]
   (let [old (:children @inst-atom)
         n (count new-children)
-        ;; reuse the child atom at each position when it exists; else a fresh one
-        reused (vec (for [i (range n)]
-                      (if (< i (count old)) (nth old i) (atom nil))))]
+        ;; reuse the child atom at each position that still exists; the rest are fresh
+        fresh (vec (repeatedly (max 0 (- n (count old))) #(atom nil)))
+        reused (into (vec (take n old)) fresh)]
     ;; remove widgets for children that no longer exist
     (doseq [i (range n (count old))]
       (dispose-tree! (nth old i))
@@ -257,7 +257,7 @@
     ;; Publish slots before rendering: a failed sibling must still be disposable.
     (swap! inst-atom assoc :children reused)
     ;; reconcile each child into its (possibly new) atom
-    (with-fresh-slots inst-atom (set (subvec reused (min n (count old))))
+    (with-fresh-slots inst-atom (set fresh)
       (fn []
         (doseq [i (range n)]
           (reconcile-el! parent-widget parent-tag (nth new-children i) (nth reused i) inst-atom))))))
