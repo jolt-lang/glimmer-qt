@@ -217,6 +217,27 @@
     (check! (zero? @calls) "Queued object reference never retargets a reused address")
     (clean-objects!)))
 
+(defn removal-invalidates-subtree! []
+  ;; Qt deletes removed objects later, so handles that are dead right after the
+  ;; removal show that invalidation found every registered descendant.
+  (run!
+   (fn [done]
+     (let [outer (w/create! :vbox {})
+           box (w/create! :vbox {})
+           label (w/create! :label {:label "inside"})
+           service (w/create! :test/service {})
+           sibling (w/create! :label {:label "outside"})]
+       (o/invoke! service "exposeChild()" [])
+       (let [child (:value (q/read-property service "child"))]
+         (doseq [w [label service]] (w/append-child! :vbox box w))
+         (doseq [w [box sibling]] (w/append-child! :vbox outer w))
+         (w/remove-child! :vbox outer box)
+         (check! (not-any? q/alive? [box label service child])
+                 "Removal invalidates the removed subtree, exposed children included")
+         (check! (every? q/alive? [outer sibling]) "Removal leaves the rest of the tree live")
+         (w/dispose! outer)
+         (done))))))
+
 (defn- scramble
   "Fisher-Yates driven by a fixed LCG seed, so a failing order reproduces."
   [v seed]
@@ -280,6 +301,7 @@
     (methods!)
     (fresh-and-replacement!)
     (reactive-and-controlled!)
+    (removal-invalidates-subtree!)
     (child-order!)
     (workers-and-native-destruction!)
     (failures-clean-up!)

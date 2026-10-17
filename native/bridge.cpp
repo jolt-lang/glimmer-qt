@@ -136,12 +136,13 @@ public:
     }
     void invalidate(QObject *root) {
         // Includes registered descendants, but never exposes Qt's internal objects.
+        // Walks root's own subtree, so a removal costs its size, not the session's.
         QList<Handle> removed;
-        for (auto it = objects.cbegin(); it != objects.cend(); ++it) {
-            for (QObject *p = it.value(); p; p = p->parent()) {
-                if (p == root) { removed.append(it.key()); break; }
-            }
-        }
+        auto collect = [&](QObject *object) {
+            if (const Handle id = identities.value(object)) removed.append(id);
+        };
+        collect(root);
+        for (QObject *descendant : root->findChildren<QObject *>()) collect(descendant);
         for (Handle id : removed) {
             cancelOwner(id);
             { std::lock_guard<std::mutex> lock(postMutex); referenceIds.remove(objects.value(id)); }
