@@ -81,20 +81,11 @@ and release it with `widget/dispose!` or final quit. QWidget services are retain
 explicitly without a QObject engine parent and cannot be children in a Qt Quick
 composition. Their native QWidget descendants retain normal Qt ownership.
 
-## Explicit Glimmer contract extension
+## Glimmer's backend lifecycle contract
 
-`vendor/glimmer` is an explicitly maintained copy of `jolt-lang/glimmer` at
-`d81af8fb2fa4164a2261db3c15fc7c93271dce60` (main as of 2026-10-14) plus the two
-pull requests that carry these changes upstream,
-[#12](https://github.com/jolt-lang/glimmer/pull/12) (`reconciler-subscriptions`:
-subscription scopes and failed-render unwinding) and
-[#13](https://github.com/jolt-lang/glimmer/pull/13) (`lifecycle-seam`: the
-backend contract below), with its MIT license and upstream tests. `deps.edn`
-selects this local dependency deliberately; upstream main alone does **not**
-supply the lifetime contract below until both have landed. The separate Glimmer
-reference checkout is not changed. These portable changes are isolated here for
-review/upstream coordination, rather than monkey-patching private reconciler
-state at runtime.
+Glimmer's backend contract includes a lifecycle seam, added upstream in
+[jolt-lang/glimmer#13](https://github.com/jolt-lang/glimmer/pull/13), which
+glimmer-qt implements. `deps.edn` pins a Glimmer revision that has it.
 
 The optional backend `:run-lifecycle` operation receives options and a map of
 three callbacks. Their return values are unspecified:

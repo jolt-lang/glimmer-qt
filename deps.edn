@@ -1,8 +1,8 @@
 {:paths ["src"]
- ;; Upstream d81af8fb2fa4164a2261db3c15fc7c93271dce60 plus the two pending upstream pull
- ;; requests (reconciler-subscriptions, lifecycle-seam). See LIFECYCLE.md; do not
- ;; substitute plain upstream main until both have landed.
- :deps {jolt-lang/glimmer {:local/root "vendor/glimmer"}}
+ ;; jolt-lang/glimmer main after #15. glimmer-qt needs its backend lifecycle seam
+ ;; (#13, see LIFECYCLE.md).
+ :deps {jolt-lang/glimmer {:git/url "https://github.com/jolt-lang/glimmer"
+                           :git/sha "22350c4d047b05359a16b756b20f38ecb391a63b"}}
  :aliases {:counter {:extra-paths ["examples"] :main-opts ["-m" "glimmer-qt.counter"]}
            :hello {:extra-paths ["examples"] :main-opts ["-m" "glimmer-qt.hello"]}
            :dialogs-test {:extra-paths ["test"] :main-opts ["-m" "glimmer-qt.dialogs-test"]}

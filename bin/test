@@ -33,7 +33,6 @@ SUITES = {
     "dialogs": "dialogs and file selection",
     "tray": "tray icons and menus",
     "services": "isolated clipboard and desktop-service hooks",
-    "glimmer": "vendored Glimmer's own unit tests",
     "macos-activation": "macOS desktop activation (explicit only)",
 }
 AUTOMATED = tuple(name for name in SUITES if name != "macos-activation")
@@ -123,8 +122,6 @@ def run_suite(name, runtime, args, base_env):
             if code:
                 return code
         return 0
-    if name == "glimmer":
-        return run_process([runtime, "-M:test"], env, timeout, cwd=ROOT / "vendor/glimmer")[0]
     if name == "dialogs" and args == ["--native-desktop"]:
         env["QT_QPA_PLATFORM"] = "cocoa"
         timeout = 240
@@ -167,11 +164,10 @@ def main():
     failures = []
     for name in selected:
         print(f"\n== {name} ==", flush=True)
-        if name != "glimmer":
-            test_fixtures = name not in PRODUCTION
-            if configuration != test_fixtures:
-                env = build_environment(test_fixtures)
-                configuration = test_fixtures
+        test_fixtures = name not in PRODUCTION
+        if configuration != test_fixtures:
+            env = build_environment(test_fixtures)
+            configuration = test_fixtures
         try:
             code = run_suite(name, runtime, args, env)
             if code:

@@ -13,9 +13,9 @@ and Qt 6 with Quick, Quick Controls, Multimedia, and Test. The `media` suite
 also requires an `ffmpeg` executable with libx264 and a Qt SDK containing the
 FFmpeg multimedia plugin; see [MEDIA.md](MEDIA.md).
 
-`all` runs the 15 Qt suites and vendored Glimmer's unit tests, each in its own
-process. It builds the production bridge for lifecycle, scheduling, layout,
-and media, then builds with native test fixtures for the remaining Qt suites.
+`all` runs the 15 Qt suites, each in its own process. It builds the production
+bridge for lifecycle, scheduling, layout, and media, then builds with native
+test fixtures for the remaining Qt suites.
 Each configuration is built once. Tests run sequentially, continue after a
 suite failure, and finish with a summary and a nonzero exit status if any fail.
 A build failure stops the run immediately. Missing media dependencies are
@@ -26,7 +26,6 @@ seconds for tray/services. This also bounds native event-loop and GC deadlocks.
 Temporary image, video, and service fixtures are removed when the suite exits,
 including on failure or timeout. Layout-loop warnings fail the layout suite.
 
-`glimmer` alone runs the vendored unit tests without building or requiring Qt.
 The existing `jolt -M:…-test` aliases remain available for a manually prepared
 environment. In particular, `jolt -M:test` runs only lifecycle checks; use
 `jolt test` for the complete automated set.
