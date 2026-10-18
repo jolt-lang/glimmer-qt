@@ -1,15 +1,13 @@
 # Third-party notices and binary releases
 
-Glimmer Qt was extracted from [Snitt](https://github.com/isaksky/snitt). Its
-original code remains under the [MIT license](LICENSE), including the existing
-Snitt contributor attribution. Dependencies and third-party assets retain their
-own licenses.
+Glimmer Qt's own code is under the [MIT license](LICENSE). Dependencies and
+third-party assets retain their own licenses.
 
 ## Material included in this repository
 
 | Material | License and provenance |
 | --- | --- |
-| `test/icons/scissors.svg` | Lucide, ISC, copied from Snitt's `src/icons/scissors.svg`. Preserve [the icon license](test/icons/LICENSE), copied intact from Snitt, including the upstream Feather notice for the icons to which it applies. |
+| `test/icons/scissors.svg` | Lucide, ISC. Preserve [the icon license](test/icons/LICENSE), including the upstream Feather notice for the icons to which it applies. |
 
 Include these notices when distributing the corresponding material, including
 source archives and test fixtures. The complete Lucide notice is retained for
@@ -61,9 +59,5 @@ Review both standalone bridge releases and applications that include the bridge.
 clip. That test tool is separate from the FFmpeg libraries loaded by Qt's
 multimedia plugin; inspect the plugin's actual dependencies for a release.
 
-Snitt's [experiment packaging notes](https://github.com/isaksky/snitt/blob/91f347c5b09514604ffcf71d972d5e90cf42c37a/experiment/PACKAGING.md)
-and [packaging script](https://github.com/isaksky/snitt/blob/91f347c5b09514604ffcf71d972d5e90cf42c37a/bin/package-glimmer-macos)
-are implementation references for collecting notices, a dependency inventory,
-and source/build materials. That packaging workflow was not extracted into this
-repository. This notice is developer guidance; each release still needs its own
-inventory and license materials.
+This repository has no packaging workflow. This notice is developer guidance;
+each release still needs its own inventory and license materials.

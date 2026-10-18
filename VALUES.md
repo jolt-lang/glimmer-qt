@@ -36,8 +36,8 @@ out-of-range integers and implicit string-to-color/URL conversions fail.
 Integer-to-double conversion is limited to the exact ±2^53 range; doubles never
 silently narrow to integers. Qt enum keys use the property's own metadata;
 numeric enum values and keys from other enum types are rejected. Flag reads use
-Qt's canonical key order/aliases. QColor reads use 8-bit ARGB, matching Snitt's
-settings colors; extended/HDR color spaces are outside this vocabulary.
+Qt's canonical key order/aliases. QColor reads use 8-bit ARGB; extended/HDR
+color spaces are outside this vocabulary.
 
 References do not transfer ownership or extend lifetime. Reads of unregistered
 or logically disposed references fail, including references nested in containers.

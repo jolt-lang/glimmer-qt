@@ -127,11 +127,7 @@
 
 (doseq [[tag props events children relay]
         [[:vbox (assoc (merge common padding box-style) :spacing ["spacing" :number 0]) {} "content" ""]
-         [:hbox (merge common padding box-style
-                       {:spacing ["spacing" :number 0]
-                        :selected-segment ["selectedSegment" :number -1]
-                        :segment-count ["segmentCount" :number 2]
-                        :segment-color ["segmentColor" :color "transparent"]}) {} "content" ""]
+         [:hbox (assoc (merge common padding box-style) :spacing ["spacing" :number 0]) {} "content" ""]
          [:toolbar (assoc common :hint-minimum-width ["hintMinimumWidth" :number 180]) {} :self ""]
          [:center common {} :self ""]
          [:flow (assoc (merge common padding) :spacing ["spacing" :number 0]) {} "content" ""]
@@ -202,43 +198,6 @@
           {:on-click :none} :none "relay"]]]
   (register! tag {:source (str "qrc:/glimmer-qt/" (name tag) ".qml")
                   :props props :events events :children children :relay relay}))
-
-(register! :selector-toolbar
-  {:source "qrc:/glimmer-qt/selector-toolbar.qml" :relay "relay" :children :none
-   :props (merge common {:x ["x" :number 0] :y ["y" :number 0]
-                         :width ["width" :number 960] :height ["height" :number 60]
-                         :screen-width ["screenWidth" :number 960]
-                         :mode ["mode" :string "single"] :selection-count ["selectionCount" :number 0]
-                         :hints ["hints" :value {}] :shortcuts ["shortcuts" :value {}]})
-   :events {:on-action :string}})
-
-(register! :selection-decoration
-  {:source "qrc:/glimmer-qt/selection-decoration.qml" :relay "relay" :children :none
-   :props (merge common {:width ["width" :number 960] :height ["height" :number 600]
-                         :regions ["regions" :value []] :dragging ["dragging" :bool false]
-                         :drag-area ["dragArea" :value (value/rect-f 0 0 0 0)]
-                         :dimensions ["dimensions" :string ""] :notice ["notice" :string ""]})
-   :events {:on-remove :number}})
-
-(register! :recording-indicator
-  {:source "qrc:/glimmer-qt/recording-indicator.qml" :children :none
-   :props (merge common {:completing ["completing" :bool false]}) :events {}})
-
-(register! :playback-controls
-  {:source "qrc:/glimmer-qt/playback-controls.qml" :relay "relay" :children :none
-   :props (merge common {:elapsed ["elapsed" :string ""] :total ["total" :string ""]
-                         :label ["label" :string "Play"] :tooltip ["tooltip" :string ""]
-                         :icon ["iconSource" :string ""] :can-play ["canPlay" :bool true]})
-   :events {:on-play :none}})
-
-(register! :trim-bar
-  {:source "qrc:/glimmer-qt/trim-bar.qml" :relay "relay" :children :none
-   :props (merge common {:duration ["durationSec" :number 0] :start ["startSec" :number 0]
-                         :end ["endSec" :number 0] :playhead ["playheadSec" :number 0]
-                         :thumb-count ["thumbCount" :number 12]
-                         :thumbnails ["thumbnails" :value []]
-                         :start-label ["startLabel" :string ""] :end-label ["endLabel" :string ""]})
-   :events {:on-seek :number :on-start :number :on-end :number :on-interacting-change :bool}})
 
 (register! :slider
   {:source "qrc:/glimmer-qt/slider.qml" :relay "relay"
@@ -658,7 +617,7 @@
 
 (defn find-by-id
   "Find a live handle, optionally scoped to a window's mount point. With no
-  scope, duplicate IDs are rejected rather than returning another editor's object."
+  scope, duplicate IDs are rejected rather than returning another window's object."
   ([id] (find-by-id nil id))
   ([container id]
    (let [within? (fn [widget]

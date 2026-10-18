@@ -35,7 +35,7 @@ render function. Increment, decrement, and reset update the label in place.
 
 ## Hello
 
-[hello.clj](examples/glimmer_qt/hello.clj) adapts Snitt's small greeting example.
+[hello.clj](examples/glimmer_qt/hello.clj) is a small greeting form.
 Edit the name and press Enter or **Say hello**. It demonstrates controlled text
 input, reactive labels, event handlers, and expanding layouts. Blank names fall
 back to "world". Its `defonce` state also supports keeping state during live

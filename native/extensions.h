@@ -44,8 +44,8 @@ extern "C" GQT_API int gqt_register_image_provider(const char *name,
 // Register application-specific desktop services for one active session. The
 // publisher consumes the MIME object on every path, including failure. Hooks
 // must not throw and must stay loaded until the session closes. Without a
-// publisher Windows fails closed instead of claiming an optimistic Qt copy;
-// Snitt can register snittClipboard::publish to retain its native retry path.
+// publisher Windows fails closed instead of claiming an optimistic Qt copy; a
+// publisher can verify the copy with the platform's own clipboard API and retries.
 using GqtClipboardPublisher = bool (*)(std::unique_ptr<QMimeData>);
 using GqtUrlOpener = bool (*)(const QUrl &);
 using GqtFileRevealer = bool (*)(const QString &);

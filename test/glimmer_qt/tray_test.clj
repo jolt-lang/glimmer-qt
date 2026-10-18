@@ -13,14 +13,13 @@
 
 (defn -main [& _]
   (try
-    (let [desktop? (= "1" (or (System/getenv "GLIMMER_QT_TRAY_DESKTOP_CHECK")
-                              (System/getenv "SNITT_TRAY_DESKTOP_CHECK")))
+    (let [desktop? (= "1" (System/getenv "GLIMMER_QT_TRAY_DESKTOP_CHECK"))
           calls (atom []) tray-id (atom nil) capture (atom nil)
           editor (atom nil) quit (atom nil) window (atom nil)
           finished (atom false)]
       (qt/run-application!
        (fn []
-         (reset! tray-id (tray/create! (icon-path) :tooltip "Snitt tray test"
+         (reset! tray-id (tray/create! (icon-path) :tooltip "Glimmer Qt tray test"
                                        :on-activate #(swap! calls conj [:activate %])
                                        :on-message-click #(swap! calls conj :message)))
          (reset! window (qt/open-window! (fn [] [:label {:label "Editor"}]) :visible false))
@@ -31,7 +30,7 @@
                                          :on-trigger #(do (swap! calls conj :editor)
                                                          (qt/show! @window))))
          (tray/add-separator! @tray-id)
-         (reset! quit (tray/add-action! @tray-id :label "Quit Snitt"
+         (reset! quit (tray/add-action! @tray-id :label "Quit Glimmer Qt"
                                        :on-trigger #(do (swap! calls conj :quit)
                                                        (qt/quit!))))
          (let [temporary (tray/create! (icon-path))

@@ -2,7 +2,7 @@
 # Parallelism for the native library and test fixtures.
 set -eu
 
-JOBS="${GLIMMER_QT_BUILD_JOBS:-${SNITT_BUILD_JOBS:-}}"
+JOBS="${GLIMMER_QT_BUILD_JOBS:-}"
 if [ -z "$JOBS" ]; then
     if command -v nproc >/dev/null 2>&1; then
         JOBS="$(nproc 2>/dev/null || echo 1)"

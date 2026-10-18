@@ -33,8 +33,6 @@
 #include <QAction>
 #include <QIcon>
 #include <QCursor>
-#include <QToolTip>
-#include <QStyle>
 #include <QDebug>
 #include <cstdint>
 #include <cmath>
@@ -74,25 +72,6 @@ static thread_local QSet<Handle> controlledWrites;
 class Relay : public QObject {
     Q_OBJECT
 public:
-    QPointer<QObject> tooltipOwner;
-    Q_INVOKABLE int nativeToolTipDelay() const {
-        return QApplication::style()->styleHint(QStyle::SH_ToolTip_WakeUpDelay);
-    }
-    Q_INVOKABLE void nativeToolTip(QObject *owner, bool visible, const QString &text) {
-        if (!visible) {
-            if (tooltipOwner == owner) { QToolTip::hideText(); tooltipOwner.clear(); }
-            return;
-        }
-        if (!owner || text.isEmpty()) return;
-        tooltipOwner = owner;
-        if (!owner->property("_gqtNativeToolTipHook").toBool()) {
-            owner->setProperty("_gqtNativeToolTipHook", true);
-            QObject::connect(owner, &QObject::destroyed, this, [this] {
-                if (!tooltipOwner) QToolTip::hideText();
-            });
-        }
-        QToolTip::showText(QCursor::pos(), text);
-    }
     EventHandler handler = nullptr;
     QHash<Handle, bool> pointerReplies;
     Q_INVOKABLE bool pointer(QObject *widget, const QString &event, QVariantMap payload);
@@ -353,7 +332,7 @@ static bool publishClipboard(Session *s, std::unique_ptr<QMimeData> mime) {
     }
 #ifdef Q_OS_WIN
     // Qt setMimeData does not prove that Windows accepted the contents. The
-    // application must install a publisher such as snittClipboard::publish.
+    // application must install a publisher that verifies the copy.
     if (QGuiApplication::platformName() == QStringLiteral("windows")) return false;
 #endif
     QMimeData *published = mime.release(); // QClipboard takes ownership.
@@ -640,7 +619,7 @@ extern "C" Q_DECL_EXPORT int gqt_set_handler(Handle id, EventHandler handler) {
     s->relay.handler = handler;
     return 1;
 }
-// Tray menus are independent QWidget services. They stay alive when all editor
+// Tray menus are independent QWidget services. They stay alive when all application
 // windows are hidden and are explicitly deleted before the owning tray icon.
 extern "C" Q_DECL_EXPORT int gqt_tray_available() {
     return guiThread() && QSystemTrayIcon::isSystemTrayAvailable() ? 1 : 0;

@@ -40,9 +40,7 @@ environment. In particular, `jolt -M:test` runs only lifecycle checks; use
 
 The example and test launchers share Qt setup so plugins and QML imports come
 from the SDK that built the bridge. Media additionally accepts `QT_PLUGIN_PATH`
-for a compatible external multimedia plugin. The old `SNITT_QMAKE`,
-`SNITT_BUILD_JOBS`, `SNITT_MEDIA_SCREENSHOT`, and `SNITT_TRAY_DESKTOP_CHECK`
-overrides remain supported; prefer the corresponding `GLIMMER_QT_*` names.
+for a compatible external multimedia plugin.
 
 ## Desktop and screenshot checks
 

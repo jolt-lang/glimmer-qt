@@ -215,13 +215,12 @@ From the repository root:
 ./bin/test glimmer
 ```
 
-Use `jolt test` or `./bin/test all` to run all automated suites. The shared
-runner replaces the root `test-*` scripts; see [TESTING.md](TESTING.md).
+Use `jolt test` or `./bin/test all` to run all automated suites; see
+[TESTING.md](TESTING.md).
 
 The build finds `qmake6` or `qmake` on `PATH`, then Homebrew's Qt installation.
 Set `GLIMMER_QT_QMAKE` to select another Qt 6 qmake executable, and
-`GLIMMER_QT_BUILD_JOBS` to override the detected CPU count. The original
-`SNITT_QMAKE` and `SNITT_BUILD_JOBS` variables remain accepted as fallbacks.
+`GLIMMER_QT_BUILD_JOBS` to override the detected CPU count.
 
 The lifecycle runner defaults to the offscreen Qt platform. Set
 `QT_QPA_PLATFORM=cocoa` for a macOS desktop run. Tests exercise real Qt signals,

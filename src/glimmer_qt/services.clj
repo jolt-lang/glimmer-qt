@@ -1,7 +1,7 @@
 (ns glimmer-qt.services
   "GUI-thread clipboard and desktop operations. Each call returns {:ok? true
   :value ...} or {:ok? false :error ...}; failed publication never signals that
-  an editor may discard its document. Images are session-owned native QImages:
+  an application may discard the copied data. Images are session-owned native QImages:
   release-image! when finished, and never use one after the session closes."
   (:require [glimmer-qt.ffi :as q]
             [glimmer-qt.widget :as widget]

@@ -2,8 +2,8 @@
 set -eu
 
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-if [ -n "${GLIMMER_QT_QMAKE:-${SNITT_QMAKE:-}}" ]; then
-    QMAKE="${GLIMMER_QT_QMAKE:-$SNITT_QMAKE}"
+if [ -n "${GLIMMER_QT_QMAKE:-}" ]; then
+    QMAKE="$GLIMMER_QT_QMAKE"
 elif command -v qmake6 >/dev/null 2>&1; then
     QMAKE=qmake6
 elif command -v qmake >/dev/null 2>&1; then

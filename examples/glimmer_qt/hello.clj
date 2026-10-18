@@ -1,5 +1,5 @@
 (ns glimmer-qt.hello
-  "A greeting form adapted from Snitt's experiment. Run with `jolt hello`."
+  "A greeting form. Run with `jolt hello`."
   (:require [clojure.string :as str]
             [glimmer.core :as ui]
             [glimmer.ratom :as r]

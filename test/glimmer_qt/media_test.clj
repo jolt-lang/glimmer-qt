@@ -70,8 +70,7 @@
                 (fn []
                   (check! (> @elapsed 0.2) "Elapsed-time playhead advances independently of sparse frames")
                   (check! (= (value/enum "PlayingState") (:playback (media/state s))) "Playing state")
-                  (when-let [path (or (System/getenv "GLIMMER_QT_MEDIA_SCREENSHOT")
-                                     (System/getenv "SNITT_MEDIA_SCREENSHOT"))]
+                  (when-let [path (System/getenv "GLIMMER_QT_MEDIA_SCREENSHOT")]
                     (q/save-window @widget/session path))
                   (media/pause! s)
                   (check! (= (value/enum "PausedState") (:playback (media/state s))) "Paused state")

@@ -25,7 +25,7 @@
         (fn []
           (check! (zero? (application-active?)) "Accessory app starts inactive")
           (let [window (qt/open-window! (fn [] [:label {:label "Background capture activation test"}])
-                                       :title "Snitt activation regression"
+                                       :title "Glimmer Qt activation regression"
                                        :width 360 :height 120 :tool true :frameless true :topmost true)]
             (activate! window)
             (qt/later! 250
@@ -43,7 +43,7 @@
       (qt/run-application!
         #(qt/later! 250 (fn [] (exercise! [[:activate qt/activate!]
                                            [:request-activate qt/request-activate!]] finished)))
-        :app-id "snitt-activation-test" :keep-alive true :auto-quit-ms 5000)
+        :app-id "glimmer-qt-activation-test" :keep-alive true :auto-quit-ms 5000)
       (check! @finished "Activation regression sequence completed")
       (println "PASS: macOS accessory app activation, native tool visibility and keyboard focus")
       (finally (shutdown-agents)))))
