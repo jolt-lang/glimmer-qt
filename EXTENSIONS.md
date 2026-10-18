@@ -52,7 +52,7 @@ filesystem path. Use `value/local-file` for paths with spaces, `#`, or Unicode;
 passing a raw path or a manually assembled `file:` URL loses Qt's path encoding.
 Compile application SVGs and other resources into the application's own qrc
 library. Keep that library loaded and register its resources before rendering.
-No Snitt icons are linked into `glimmer_qt`.
+`glimmer_qt` itself links no application icons.
 
 `:source-width` and `:source-height` bound image decoding in physical pixels;
 omit them to retain Qt's intrinsic size and `@2x` logical sizing. Both must be
@@ -79,9 +79,10 @@ owns or retains its pixel storage. For an external buffer, use `QImage`'s cleanu
 callback rather than returning a view of temporary memory. Qt retains implicit
 image copies through rendering; the provider's release callback runs when the
 session engine is destroyed. Keep the extension library loaded through that
-point. [Snitt's application fixture](https://github.com/isaksky/snitt/blob/91f347c5b09514604ffcf71d972d5e90cf42c37a/experiment/native/extensions.cpp)
-demonstrates the ownership pattern; `./experiment/test-images` in that repository
-verifies its release.
+point. The test fixture `gqt_register_image_fixture` in `native/bridge.cpp` shows
+the ownership pattern: its `QImage` frees its pixels through the cleanup
+callback. The objects suite checks that a session releases both the pixels and
+the provider.
 
 ## Native factories and ownership
 
@@ -89,8 +90,8 @@ Application native libraries link against the same `glimmer_qt` shared library
 and include `native/extensions.h`. On the Qt thread, register a unique factory
 name with `gqt_register_factory(name, create, complete)`, then use
 `:source "native:app.factory"` in a managed descriptor. Registration returns
-zero with `gqt_error()` on failure. The example registers during the first root
-render, before its native elements are created.
+zero with `gqt_error()` on failure. The objects suite registers its fixtures
+during the first root render, before any native element is created.
 
 `create` returns a fresh, unparented QObject, QQuickItem, or standalone QWidget.
 QWidget services are retained explicitly until disposal or application quit;
@@ -218,29 +219,24 @@ subscriptions. Native pointer properties must follow Qt's lifetime rules (use
 `QPointer` for references that can be deleted independently). A registered service
 must remain GUI-affine throughout its lifetime.
 
-## Application example and verification
+## Verification
 
-The files `src/hello/extensions.clj`, `qml/Spinner.qml`, and `native/extensions.cpp`
-in [Snitt's experiment directory](https://github.com/isaksky/snitt/tree/91f347c5b09514604ffcf71d972d5e90cf42c37a/experiment)
-provide a QML spinner with a content slot,
-a native item with a completion hook, and a nonvisual QObject factory. The QML
-resource is compiled into the application extension library, not the backend.
-
-From the repository root:
+An application's own QML components and other resources are compiled into its
+extension library, not into `glimmer_qt`. From the repository root:
 
 ```sh
 ./bin/test objects
 ```
 
-This runs automated Qt integration checks offscreen. The object suite uses a
-test-only native service to check overloads, typed values, reactive
-notifications, worker signals, cancellation and borrowed lifetimes. It includes
-an external deadline for worker/GC failures. In the Snitt repository,
-`./experiment/test-extensions` checks the application extension and
-`QT_QPA_PLATFORM=cocoa ./experiment/test-extensions --demo` rotates the spinner
-using an owner-scoped repeating job. Offscreen signal and
-lifetime checks do not establish physical keyboard/mouse behavior. Validation
-for this change is local macOS only; Windows execution is deferred.
+This runs automated Qt integration checks offscreen against test-only fixtures
+compiled into the test build of the bridge (`GQT_PROPERTY_TESTS` in
+`native/bridge.cpp`). A native service checks overloads, typed values, reactive
+notifications, worker signals, cancellation and borrowed lifetimes. A factory
+with a completion hook checks that the hook runs after the initial properties,
+and an image provider checks what a session releases. The suite includes an
+external deadline for worker/GC failures. Offscreen signal and lifetime checks
+do not establish physical keyboard/mouse behavior. These checks run on macOS
+only; Windows execution is deferred.
 
 ## Layout and visual primitives
 

@@ -1286,6 +1286,32 @@ extern "C" Q_DECL_EXPORT int gqt_test_file_result(Handle id, const char *path) {
 extern "C" Q_DECL_EXPORT int gqt_register_object_fixture() {
     return gqt_register_factory("test.object", []() -> QObject * { return new ObjectFixture; }, nullptr);
 }
+// A factory whose completion hook runs after the bridge writes initial properties.
+extern "C" Q_DECL_EXPORT int gqt_register_completed_fixture() {
+    return gqt_register_factory("test.completed", []() -> QObject * { return new ObjectFixture; },
+                                [](QObject *object) { object->setObjectName(object->objectName() + "/completed"); });
+}
+// An image provider that owns its pixels through QImage's cleanup callback. The
+// counters let the objects suite check what a session frees.
+static std::atomic<int> imageFixtureRequests{0};
+static std::atomic<int> imageFixturePixelReleases{0};
+static std::atomic<int> imageFixtureReleases{0};
+extern "C" Q_DECL_EXPORT int gqt_register_image_fixture() {
+    return gqt_register_image_provider("test", [](void *, const QString &, QSize *actual, const QSize &requested) {
+        ++imageFixtureRequests;
+        const QSize size = requested.isEmpty() ? QSize(24, 12) : requested;
+        auto *pixels = new uchar[size.width() * size.height() * 4];
+        QImage image(pixels, size.width(), size.height(), size.width() * 4, QImage::Format_ARGB32_Premultiplied,
+                     +[](void *data) { delete[] static_cast<uchar *>(data); ++imageFixturePixelReleases; }, pixels);
+        image.fill(QColor(36, 171, 109));
+        if (actual) *actual = image.size();
+        return image;
+    }, nullptr, [](void *) { ++imageFixtureReleases; });
+}
+extern "C" Q_DECL_EXPORT int gqt_test_image_fixture(int counter) {
+    return counter == 0 ? imageFixtureRequests.load()
+         : counter == 1 ? imageFixturePixelReleases.load() : imageFixtureReleases.load();
+}
 extern "C" Q_DECL_EXPORT int gqt_register_window_fixture() {
     return gqt_register_factory("test.widget", []() -> QObject * {
         if (!qobject_cast<QApplication *>(QCoreApplication::instance())) return nullptr;

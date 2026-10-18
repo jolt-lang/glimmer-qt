@@ -10,6 +10,9 @@
             [jolt.host :as host]
             [jolt.ffi :as ffi]))
 (ffi/defcfn register-fixture "gqt_register_object_fixture" [] :int)
+(ffi/defcfn register-completed-fixture "gqt_register_completed_fixture" [] :int)
+(ffi/defcfn register-image-fixture "gqt_register_image_fixture" [] :int)
+(ffi/defcfn image-fixture "gqt_test_image_fixture" [:int] :int)
 (ffi/defcfn reuse-object "gqt_reuse_test_object" [:uint64] :uint64)
 (ffi/defcfn awaiting-gc "gqt_test_awaiting_gc" [] :int)
 (ffi/defcfn gc-completed "gqt_test_gc_completed" [] :void)
@@ -20,9 +23,12 @@
                            :props {:id ["objectName" :string ""] :count ["count" :number 0]
                                    :reference ["reference" :value nil]}})
 (w/register! :test/container {:source "native:test.object" :children "child"})
+(w/register! :test/completed {:source "native:test.completed" :children :none
+                             :props {:id ["objectName" :string ""]}})
 (defn init! []
   (when-not @registered
     (check! (= 1 (register-fixture)) "Register fixture on GUI thread")
+    (check! (= 1 (register-completed-fixture)) "Register completion-hook fixture")
     (reset! registered true)))
 (defn service! []
   (let [id (q/create-registered @w/session "native:test.object" (v/encode {}) "")]
@@ -217,6 +223,30 @@
     (check! (zero? @calls) "Queued object reference never retargets a reused address")
     (clean-objects!)))
 
+(defn extension-hooks! []
+  ;; A factory's completion hook runs after the initial properties are written,
+  ;; and an image provider serves :image. Its pixels and the provider itself are
+  ;; released by the end of the session.
+  (let [[requests pixels releases] (map image-fixture [0 1 2])
+        provided (atom false)]
+    (run-steps!
+     (fn []
+       (init!)
+       (when-not @provided
+         (check! (= 1 (register-image-fixture)) "Register the session's image provider")
+         (reset! provided true))
+       [:vbox
+        [:test/completed {:id "completed"}]
+        [:image {:id "provided" :source (v/url "image://test/green") :asynchronous false :cache false}]])
+     [(fn []
+        (check! (= "completed/completed" (q/read-property (widget "completed") "objectName"))
+                "Completion hook runs after initial properties")
+        (check! (= "ready" (q/read-property (widget "provided") "loadState")) "Provider image loads")
+        (check! (< requests (image-fixture 0)) "Provider served the image"))])
+    (check! (= (inc releases) (image-fixture 2)) "Provider released when its session closes")
+    (check! (< pixels (image-fixture 1)) "Provider pixels freed by the end of the session")
+    (clean-objects!)))
+
 (defn removal-invalidates-subtree! []
   ;; Qt deletes removed objects later, so handles that are dead right after the
   ;; removal show that invalidation found every registered descendant.
@@ -301,6 +331,7 @@
     (methods!)
     (fresh-and-replacement!)
     (reactive-and-controlled!)
+    (extension-hooks!)
     (removal-invalidates-subtree!)
     (child-order!)
     (workers-and-native-destruction!)
