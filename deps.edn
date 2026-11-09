@@ -20,11 +20,16 @@
            :services-test {:extra-paths ["test"] :main-opts ["-m" "glimmer-qt.services-test"]}
            :scheduling-test {:extra-paths ["test"] :main-opts ["-m" "glimmer-qt.scheduling-test"]}
            :test {:extra-paths ["test"] :main-opts ["-m" "glimmer-qt.lifecycle-test"]}}
- :tasks {test {:doc "Run all automated suites, or a named suite (see --list)"
+ :tasks {native {:doc "Build the native bridge (./build-native); make skips it when up to date"
+                 :task (apply shell "./build-native" *command-line-args*)}
+         test {:doc "Run all automated suites, or a named suite (see --list)"
                :task (apply shell "./bin/test" *command-line-args*)}
          counter "./bin/run-example counter"
          hello "./bin/run-example hello"}
+ ;; :build names the task that produces the bridge, so a consumer pulling
+ ;; glimmer-qt as a git dep gets it built in the checkout on first use.
  :jolt/native [{:name "glimmer-qt"
+                :build "native"
                 :darwin ["libglimmer_qt.dylib"
                          "build/libglimmer_qt.dylib"]
                 :windows ["build/release/glimmer_qt.dll" "build/glimmer_qt.dll"]
