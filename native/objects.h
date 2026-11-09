@@ -96,7 +96,12 @@ public:
                         const auto name = sub->property.toUtf8();
                         const char *wire = gqt_read_value(sub->target, name.constData());
                         if (!wire) Values::reject(error.constData());
-                        result = Values::node("list", QJsonArray{Values::parse(wire)});
+                        // Not QJsonArray{parse(wire)}: one QJsonArray in braces
+                        // selects the copy constructor, so the value's own node
+                        // became the list's elements.
+                        QJsonArray args;
+                        args.append(Values::parse(wire));
+                        result = Values::node("list", args);
                     }
                     const auto bytes = QJsonDocument(result).toJson(QJsonDocument::Compact);
                     relay->notify(sub->id, "signal", bytes.constData());
