@@ -14,13 +14,14 @@ jobs:
     env:
       QT_QPA_PLATFORM: offscreen
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Qt from the official installer rather than apt/brew: the media suite
       # needs Qt's FFmpeg multimedia plugin, which the distro and Homebrew
-      # builds leave out.
-      - uses: jurplel/install-qt-action@v4
+      # builds leave out. (6.8's headers no longer build with the macOS runner's
+      # Xcode: __yield in qyieldcpu.h.)
+      - uses: jurplel/install-qt-action@v4.5.0
         with:
-          version: '6.8.3'
+          version: '6.11.2'
           modules: 'qtmultimedia'
           cache: true
       - name: Install runtime deps (Linux)
@@ -34,7 +35,7 @@ jobs:
         run: command -v ffmpeg >/dev/null || brew install ffmpeg
       - id: jolt
         uses: jlt-commons/setup-jolt@v1.0.2
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.jolt/gitlibs
