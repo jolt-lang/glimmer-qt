@@ -1,0 +1,50 @@
+name: tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v7
+      # Qt from the official installer rather than apt/brew: the media suite
+      # needs Qt's FFmpeg multimedia plugin, which the distro and Homebrew
+      # builds leave out. (6.8's headers no longer build with the macOS runner's
+      # Xcode: __yield in qyieldcpu.h.)
+      - uses: jurplel/install-qt-action@v4.5.0
+        with:
+          version: '6.11.2'
+          modules: 'qtmultimedia'
+          cache: true
+      - name: Install runtime deps (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y liblz4-1 zlib1g libtinfo6 \
+            libgl1 libegl1 libxkbcommon0 libfontconfig1 ffmpeg
+      - name: Install ffmpeg (macOS)
+        if: runner.os == 'macOS'
+        run: command -v ffmpeg >/dev/null || brew install ffmpeg
+      - id: jolt
+        uses: jlt-commons/setup-jolt@v1.0.2
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.jolt/gitlibs
+            ~/.jolt/mvnlibs
+            ~/.m2/repository
+          key: ${{ runner.os }}-jolt-${{ steps.jolt.outputs.version }}-${{ hashFiles('deps.edn') }}
+      # bin/test builds the bridge (production and test-fixture configurations)
+      # with the qmake on PATH and runs every automated suite offscreen.
+      - name: Test
+        run: JOLT_PWD="$PWD" ./bin/test
+      - name: Runner failure-path checks
+        run: python3 -m unittest discover -s test
