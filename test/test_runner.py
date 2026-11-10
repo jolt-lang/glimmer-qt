@@ -43,9 +43,9 @@ class RunnerTests(unittest.TestCase):
              patch.object(runner, "run_suite", side_effect=suite), \
              redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()) as errors:
             self.assertEqual(runner.main(), 1)
-        self.assertIn("glimmer", visited)
         self.assertNotIn("macos-activation", visited)
-        self.assertEqual(len(visited), 16)
+        self.assertEqual(visited, list(runner.AUTOMATED))
+        self.assertEqual(len(visited), 15)
         self.assertEqual([call.args for call in build.call_args_list], [(False,), (True,)])
         self.assertIn("Failed: layout, values", errors.getvalue())
 
