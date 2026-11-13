@@ -1,8 +1,8 @@
 {:paths ["src"]
- ;; jolt-lang/glimmer main after #15. glimmer-qt needs its backend lifecycle seam
- ;; (#13, see LIFECYCLE.md).
+ ;; glimmer-qt needs glimmer's backend lifecycle seam (#13, see LIFECYCLE.md).
  :deps {jolt-lang/glimmer {:git/url "https://github.com/jolt-lang/glimmer"
-                           :git/sha "22350c4d047b05359a16b756b20f38ecb391a63b"}}
+                           :git/tag "v0.1.8"
+                           :git/sha "7f00d14d1b3c6239638d03780006c4a76fca379f"}}
  :aliases {:counter {:extra-paths ["examples"] :main-opts ["-m" "glimmer-qt.counter"]}
            :hello {:extra-paths ["examples"] :main-opts ["-m" "glimmer-qt.hello"]}
            :dialogs-test {:extra-paths ["test"] :main-opts ["-m" "glimmer-qt.dialogs-test"]}
